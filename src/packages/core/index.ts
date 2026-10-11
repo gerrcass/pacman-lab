@@ -5,7 +5,7 @@ export type { GridPosition, Maze, Tile, TileType } from "./lib/maze";
 
 export type { Direction } from "./lib/direction";
 
-export { createSimulation, DEFAULT_DIFFICULTY } from "./lib/simulation";
+export { createSimulation } from "./lib/simulation";
 export type {
   Difficulty,
   Intent,

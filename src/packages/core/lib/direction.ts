@@ -12,15 +12,13 @@ export const DIRECTION_VECTORS: Readonly<Record<Direction, Vector>> = {
   right: { x: 1, y: 0 },
 };
 
+const OPPOSITES: Readonly<Record<Direction, Direction>> = {
+  up: "down",
+  down: "up",
+  left: "right",
+  right: "left",
+};
+
 export function opposite(direction: Direction): Direction {
-  switch (direction) {
-    case "up":
-      return "down";
-    case "down":
-      return "up";
-    case "left":
-      return "right";
-    case "right":
-      return "left";
-  }
+  return OPPOSITES[direction];
 }

@@ -30,6 +30,11 @@ export type Difficulty = {
 
 export type SimulationConfig = {
   readonly maze: Maze;
+  /**
+   * Seeds the deterministic RNG. Movement draws no randomness yet, but the seed
+   * is part of the contract: a config, seed, and intent sequence must reproduce
+   * the same snapshot sequence once randomness (Ghosts, Fruit) arrives.
+   */
   readonly seed: number;
   readonly difficulty?: Difficulty;
 };
@@ -49,9 +54,12 @@ function isCentered(value: number): boolean {
   return Math.abs(value - Math.round(value)) < EPSILON;
 }
 
+function wrapX(maze: Maze, x: number): number {
+  return ((x % maze.width) + maze.width) % maze.width;
+}
+
 function isWalkable(maze: Maze, x: number, y: number): boolean {
-  const wrappedX = ((x % maze.width) + maze.width) % maze.width;
-  const type = tileAt(maze, wrappedX, y);
+  const type = tileAt(maze, wrapX(maze, x), y);
   return type === "empty" || type === "pellet" || type === "powerPellet";
 }
 
@@ -97,8 +105,8 @@ export function createSimulation(config: SimulationConfig): Simulation {
   let next: Direction | null = null;
 
   const currentTile = (): GridPosition => ({
-    x: ((Math.floor(position.x + EPSILON) % maze.width) + maze.width) % maze.width,
-    y: Math.floor(position.y + EPSILON),
+    x: wrapX(maze, isCentered(position.x) ? Math.round(position.x) : Math.floor(position.x)),
+    y: isCentered(position.y) ? Math.round(position.y) : Math.floor(position.y),
   });
 
   const canEnter = (from: GridPosition, towards: Direction): boolean => {
@@ -112,8 +120,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
       position.x = advance(position.x, vector.x > 0 ? 1 : -1, speed, (tile) =>
         isWalkable(maze, tile, position.y),
       );
-      if (position.x < 0) position.x += maze.width;
-      else if (position.x >= maze.width) position.x -= maze.width;
+      position.x = wrapX(maze, position.x);
     } else {
       position.y = advance(position.y, vector.y > 0 ? 1 : -1, speed, (tile) =>
         isWalkable(maze, position.x, tile),
