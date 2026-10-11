@@ -91,6 +91,13 @@ changed, not to prose you didn't touch.
 Do not merge the PR unless explicitly instructed. Keep the worktree until the
 PR is merged or closed.
 
+## Workflow learnings
+
+When something teaches you how to run the workflow better (a bug in a skill, a
+tooling gap, a review finding that changed a rule), add a short entry to
+`docs/agents/learnings.md` and link the issue or PR that acted on it. Read it
+before you change a skill or the workflow.
+
 ## pacman-lab specifics
 
 - **Project identity.** The game is called **PacMan**. Hobby and educational,
@@ -144,4 +151,5 @@ Single-context: one `GLOSSARY.md` plus `docs/adr/` at the repo root. See `docs/a
 | `grilling`, `domain-modeling`, `to-spec`, `to-tickets`, `triage`, `code-review`, `pr`, `implement`, and the rest of the engineering/productivity set | [`mattpocock/skills`](https://github.com/mattpocock/skills) |
 | `next-ticket` | repo-local; composes the four beats into one per-ticket runner (`.agents/skills/next-ticket/`) |
 
-`skills-lock.json` records the exact source and hash of every installed skill.
+`skills-lock.json` records the exact source and hash of every installed upstream
+skill.

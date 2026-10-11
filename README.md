@@ -59,7 +59,8 @@ AGENTS.md                 workflow + repo-specific callouts
 skills-lock.json          pinned skill sources and hashes
 .agents/skills/           installed skills
 .agents/skills/next-ticket/  repo-local per-ticket runner
-docs/agents/              issue-tracker, triage-label, and domain-doc config
+docs/agents/              issue-tracker, triage-label, domain-doc config,
+                          and workflow learnings
 docs/adr/                 architecture decision records (0001-0003)
 GLOSSARY.md               domain vocabulary
 .worktrees/               per-task git worktrees (gitignored)
