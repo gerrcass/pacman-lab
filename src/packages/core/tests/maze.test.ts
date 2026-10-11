@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLASSIC_MAZE, MAZE_COLUMNS, MAZE_ROWS, parseMaze } from "../index";
+import { CLASSIC_MAZE, MAZE_COLUMNS, MAZE_ROWS, parseMaze, tileAt } from "../index";
 import type { Maze, TileType } from "../index";
 
 function countTiles(maze: Maze, type: TileType): number {
@@ -10,10 +10,6 @@ function countTiles(maze: Maze, type: TileType): number {
     }
   }
   return total;
-}
-
-function tileAt(maze: Maze, x: number, y: number): TileType | undefined {
-  return maze.tiles[y]?.[x]?.type;
 }
 
 describe("the classic maze", () => {
@@ -76,6 +72,11 @@ describe("parseMaze", () => {
   it("rejects an unknown character", () => {
     const rows = Array.from({ length: MAZE_ROWS }, () => "#".repeat(MAZE_COLUMNS));
     rows[5] = `?${"#".repeat(MAZE_COLUMNS - 1)}`;
+    expect(() => parseMaze(rows)).toThrow();
+  });
+
+  it("rejects a maze with no PacMan start", () => {
+    const rows = Array.from({ length: MAZE_ROWS }, () => "#".repeat(MAZE_COLUMNS));
     expect(() => parseMaze(rows)).toThrow();
   });
 });

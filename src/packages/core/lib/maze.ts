@@ -68,7 +68,7 @@ export function parseMaze(rows: readonly string[]): Maze {
     throw new Error(`Maze must have ${MAZE_ROWS} rows, got ${rows.length}`);
   }
 
-  let pacmanStart: GridPosition = { x: 0, y: 0 };
+  let pacmanStart: GridPosition | null = null;
 
   const tiles = rows.map((row, y) => {
     if (row.length !== MAZE_COLUMNS) {
@@ -87,5 +87,14 @@ export function parseMaze(rows: readonly string[]): Maze {
     });
   });
 
+  if (pacmanStart === null) {
+    throw new Error("Maze has no PacMan start (P)");
+  }
+
   return { width: MAZE_COLUMNS, height: MAZE_ROWS, tiles, pacmanStart };
+}
+
+export function tileAt(maze: Maze, x: number, y: number): TileType | undefined {
+  if (x < 0 || y < 0 || x >= maze.width || y >= maze.height) return undefined;
+  return maze.tiles[y]?.[x]?.type;
 }

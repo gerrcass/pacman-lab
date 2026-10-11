@@ -110,14 +110,18 @@ before you change a skill or the workflow.
   static output (ADR-0003).
 - **Branch convention.** Worktree dir `.worktrees/` (gitignored), branch prefix
   `agent/`.
+- **Packages.** `src/packages/{core,render,app}` are deep modules: import them
+  only through their entry points (the root files), never their `lib/`. See
+  [src/packages/README.md](./src/packages/README.md) before adding or importing
+  one.
 - **Checks**: `npm run typecheck` (tsc), `npm run lint` (ESLint + Prettier),
   `npm test` (Vitest), `npm run deps` (dependency-cruiser), and `npm run
   build`.
 - **Invariants**: the simulation is deterministic and frame-rate independent
   (fixed timestep), so a game state reproduces from a seed plus an input
   sequence. The core has no DOM or Canvas imports, and the render layer does not
-  reach into the core's internals; `npm run deps` enforces both. Never commit to
-  `main`.
+  reach into the core's internals; `npm run deps` enforces the imports and
+  ESLint bans DOM globals inside `core`. Never commit to `main`.
 - **Environment quick reference.** Node 22 and npm 11 are present. X11 display
   `:0` with the ffmpeg toolchain, so the `/evidence-driven-testing` recorder
   captures the screen (`evidence.py doctor` reports ready). Playwright chromium

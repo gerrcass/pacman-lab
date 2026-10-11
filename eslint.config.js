@@ -14,6 +14,28 @@ export default tseslint.config(
     },
   },
   {
+    files: ["src/packages/core/**/*.ts"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        "window",
+        "document",
+        "navigator",
+        "localStorage",
+        "sessionStorage",
+        "requestAnimationFrame",
+        "cancelAnimationFrame",
+        "HTMLCanvasElement",
+        "CanvasRenderingContext2D",
+        "OffscreenCanvas",
+        "Image",
+        "Audio",
+        "AudioContext",
+        "performance",
+      ],
+    },
+  },
+  {
     files: ["**/*.config.ts", "**/*.cjs", "eslint.config.js"],
     languageOptions: {
       globals: globals.node,
