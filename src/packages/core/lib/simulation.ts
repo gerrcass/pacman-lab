@@ -63,37 +63,6 @@ function isWalkable(maze: Maze, x: number, y: number): boolean {
   return type === "empty" || type === "pellet" || type === "powerPellet";
 }
 
-/**
- * Advance a continuous coordinate by `speed` along `step` (+1 or -1), stopping
- * at the last tile center whose onward tile is a wall. `walkable` is asked about
- * tiles on the moving axis.
- */
-function advance(
-  coordinate: number,
-  step: 1 | -1,
-  speed: number,
-  walkable: (tile: number) => boolean,
-): number {
-  const target = coordinate + step * speed;
-  // The first tile center at or ahead of the coordinate, in the direction of travel.
-  let center = isCentered(coordinate)
-    ? Math.round(coordinate)
-    : step > 0
-      ? Math.ceil(coordinate)
-      : Math.floor(coordinate);
-  let furthest = coordinate;
-
-  while (walkable(center)) {
-    if (step > 0 ? center > target + EPSILON : center < target - EPSILON) {
-      return target;
-    }
-    furthest = center;
-    center += step;
-  }
-
-  return step > 0 ? Math.min(target, furthest) : Math.max(target, furthest);
-}
-
 export function createSimulation(config: SimulationConfig): Simulation {
   const { maze } = config;
   const difficulty = config.difficulty ?? DEFAULT_DIFFICULTY;
@@ -103,6 +72,8 @@ export function createSimulation(config: SimulationConfig): Simulation {
   const position = { x: maze.pacmanStart.x, y: maze.pacmanStart.y };
   let direction: Direction = "left";
   let next: Direction | null = null;
+
+  const atCenter = (): boolean => isCentered(position.x) && isCentered(position.y);
 
   const currentTile = (): GridPosition => ({
     x: wrapX(maze, isCentered(position.x) ? Math.round(position.x) : Math.floor(position.x)),
@@ -114,17 +85,44 @@ export function createSimulation(config: SimulationConfig): Simulation {
     return isWalkable(maze, from.x + vector.x, from.y + vector.y);
   };
 
-  const move = (): void => {
+  /** Distance from the current position to the next tile center in `direction`. */
+  const distanceToNextCenter = (): number => {
     const vector = DIRECTION_VECTORS[direction];
-    if (vector.x !== 0) {
-      position.x = advance(position.x, vector.x > 0 ? 1 : -1, speed, (tile) =>
-        isWalkable(maze, tile, position.y),
-      );
-      position.x = wrapX(maze, position.x);
-    } else {
-      position.y = advance(position.y, vector.y > 0 ? 1 : -1, speed, (tile) =>
-        isWalkable(maze, position.x, tile),
-      );
+    if (vector.x > 0) return isCentered(position.x) ? 1 : Math.ceil(position.x) - position.x;
+    if (vector.x < 0) return isCentered(position.x) ? 1 : position.x - Math.floor(position.x);
+    if (vector.y > 0) return isCentered(position.y) ? 1 : Math.ceil(position.y) - position.y;
+    return isCentered(position.y) ? 1 : position.y - Math.floor(position.y);
+  };
+
+  const advanceBy = (distance: number): void => {
+    const vector = DIRECTION_VECTORS[direction];
+    position.x = wrapX(maze, position.x + vector.x * distance);
+    position.y += vector.y * distance;
+  };
+
+  const move = (): void => {
+    // A reversal needs no tile center, so it applies the moment it is asked for.
+    if (next !== null && next === opposite(direction)) {
+      direction = next;
+      next = null;
+    }
+
+    // Spend this tick's distance, re-deciding the buffered turn at every tile
+    // center crossed. This keeps turns exact at speeds that do not divide a tile.
+    let budget = speed;
+    for (;;) {
+      if (atCenter()) {
+        if (next !== null && canEnter(currentTile(), next)) {
+          direction = next;
+          next = null;
+        }
+        if (!canEnter(currentTile(), direction)) break;
+      }
+
+      const step = Math.min(budget, distanceToNextCenter());
+      advanceBy(step);
+      budget -= step;
+      if (budget <= EPSILON) break;
     }
   };
 
@@ -132,17 +130,6 @@ export function createSimulation(config: SimulationConfig): Simulation {
     step(intent: Intent): void {
       tick += 1;
       if (intent.desired !== null) next = intent.desired;
-
-      const aligned = isCentered(position.x) && isCentered(position.y);
-      const tile = currentTile();
-
-      if (next !== null) {
-        if (next === opposite(direction) || (aligned && canEnter(tile, next))) {
-          direction = next;
-          next = null;
-        }
-      }
-
       move();
     },
 

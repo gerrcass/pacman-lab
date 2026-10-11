@@ -90,6 +90,18 @@ describe("PacMan movement", () => {
     expect(snap.pacman.next).toBe("up");
   });
 
+  it("applies a buffered turn at a tile center at a non-default speed", () => {
+    const sim = createSimulation({
+      maze: CLASSIC_MAZE,
+      seed: 1,
+      difficulty: { pacmanTilesPerTick: 0.15 },
+    });
+    drive(sim, 40, "up");
+    const snap = sim.snapshot();
+    expect(snap.pacman.direction).toBe("up");
+    expect(snap.pacman.position.x).toBeCloseTo(12, 6);
+  });
+
   it("reverses instantly, even mid-tile", () => {
     const sim = simOn(corridor(13));
     drive(sim, 3, null);
