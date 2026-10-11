@@ -7,6 +7,7 @@ export const VIRTUAL_HEIGHT = 288;
 
 export const PELLET_RADIUS = 1.5;
 export const POWER_PELLET_RADIUS = 3;
+export const WALL_THICKNESS = 1;
 
 export const COLORS = {
   background: "#000000",

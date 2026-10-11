@@ -7,6 +7,7 @@ import {
   PELLET_RADIUS,
   POWER_PELLET_RADIUS,
   TILE_SIZE,
+  WALL_THICKNESS,
 } from "./constants";
 import type { Viewport } from "./viewport";
 
@@ -18,25 +19,13 @@ function isWall(maze: Maze, x: number, y: number): boolean {
 function drawWall(ctx: CanvasRenderingContext2D, maze: Maze, x: number, y: number): void {
   const px = MAZE_OFFSET_X + x * TILE_SIZE;
   const py = MAZE_OFFSET_Y + y * TILE_SIZE;
+  const far = TILE_SIZE - WALL_THICKNESS;
 
-  ctx.beginPath();
-  if (!isWall(maze, x, y - 1)) {
-    ctx.moveTo(px, py);
-    ctx.lineTo(px + TILE_SIZE, py);
-  }
-  if (!isWall(maze, x, y + 1)) {
-    ctx.moveTo(px, py + TILE_SIZE);
-    ctx.lineTo(px + TILE_SIZE, py + TILE_SIZE);
-  }
-  if (!isWall(maze, x - 1, y)) {
-    ctx.moveTo(px, py);
-    ctx.lineTo(px, py + TILE_SIZE);
-  }
-  if (!isWall(maze, x + 1, y)) {
-    ctx.moveTo(px + TILE_SIZE, py);
-    ctx.lineTo(px + TILE_SIZE, py + TILE_SIZE);
-  }
-  ctx.stroke();
+  ctx.fillStyle = COLORS.wall;
+  if (!isWall(maze, x, y - 1)) ctx.fillRect(px, py, TILE_SIZE, WALL_THICKNESS);
+  if (!isWall(maze, x, y + 1)) ctx.fillRect(px, py + far, TILE_SIZE, WALL_THICKNESS);
+  if (!isWall(maze, x - 1, y)) ctx.fillRect(px, py, WALL_THICKNESS, TILE_SIZE);
+  if (!isWall(maze, x + 1, y)) ctx.fillRect(px + far, py, WALL_THICKNESS, TILE_SIZE);
 }
 
 function drawPellet(ctx: CanvasRenderingContext2D, type: TileType, x: number, y: number): void {
@@ -65,8 +54,6 @@ export function drawMaze(ctx: CanvasRenderingContext2D, maze: Maze, viewport: Vi
 
   ctx.setTransform(viewport.scale, 0, 0, viewport.scale, viewport.offsetX, viewport.offsetY);
   ctx.imageSmoothingEnabled = false;
-  ctx.strokeStyle = COLORS.wall;
-  ctx.lineWidth = 1;
 
   for (let y = 0; y < maze.height; y += 1) {
     for (let x = 0; x < maze.width; x += 1) {

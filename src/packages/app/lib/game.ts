@@ -8,8 +8,9 @@ export function createGame(canvas: HTMLCanvasElement): void {
   }
 
   const resize = (): void => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(window.innerWidth * ratio);
+    canvas.height = Math.floor(window.innerHeight * ratio);
   };
 
   const render = (): void => {
