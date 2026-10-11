@@ -14,4 +14,5 @@ export const COLORS = {
   wall: "#2121de",
   pellet: "#ffb8ae",
   door: "#ffb8ff",
+  pacman: "#ffff00",
 } as const;
