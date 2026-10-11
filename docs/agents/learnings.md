@@ -38,11 +38,13 @@ own name, the way `next-ticket` sits beside Matt's `implement`. PR #2.
 The lockfile pins external skills (source plus hash) for reproducible installs.
 Repo-local skills need no entry: git is their lock, and the commit or PR that
 changed one is the pin. Do not add a repo-local skill to `skills-lock.json`; it
-would claim an external source that does not exist.
+would claim an external source that does not exist. PR #2 landed the repo-local
+skill beside the lockfile.
 
 ## 2026-10-11 — The evidence recorder captures the display
 
 The `/evidence-driven-testing` recorder grabs the X11 screen, so the browser must
 run headed on `:0` for the video to show gameplay. With no display, use the
 Playwright headless path (screenshots and video) instead. `evidence.py doctor`
-reports both: `capture_ready` and the source `auto` will pick.
+reports both: `capture_ready` and the source `auto` will pick. PR #2 recorded the
+environment note in `AGENTS.md`.
