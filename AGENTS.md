@@ -30,6 +30,10 @@ Every task moves through the same four beats, each backed by a skill in
    Greptile's file-count limit — until Greptile reports **5/5 with zero
    unresolved comments**. Finish by presenting the PR URL.
 
+To run all four beats on one ticket without driving each by hand, use the
+repo-local **`next-ticket`** skill in a fresh session: it takes the next ready
+ticket from the tracker and stops at the open PR. Repeat once per ticket.
+
 Ship-beat notes:
 
 - `/before-and-after` drives the `@vercel/before-and-after` CLI. `--markdown`
@@ -89,24 +93,29 @@ PR is merged or closed.
 
 ## pacman-lab specifics
 
-Fill the TBD lines once `/to-spec` settles the stack; do not guess them.
-
 - **Project identity.** The game is called **PacMan**. Hobby and educational,
   so shipping under the real name is fine.
-- **Stack.** TBD — decided at `/to-spec`. Expected shape: a browser game
-  (HTML5 Canvas or WebGL) with a deterministic simulation core. The final
-  choice gets an ADR in `docs/adr/`.
+- **Design.** Settled in the spec (issue #1) and the ADRs. The stack, the
+  simulation seam, and the deploy seam are decisions, not open questions.
+- **Stack.** TypeScript + Vite, rendered with the Canvas 2D API, installed with
+  npm (ADR-0002). A pure, deterministic simulation core on a fixed 60 Hz
+  timestep sits behind a single seam (ADR-0001). The build is host-agnostic
+  static output (ADR-0003).
 - **Branch convention.** Worktree dir `.worktrees/` (gitignored), branch prefix
   `agent/`.
-- **Checks** *(to be listed here)*: typecheck, lint, unit tests, build. Until
-  the stack is chosen these are unset.
-- **Invariants**: the simulation must be deterministic and frame-rate
-  independent (fixed timestep), so unit tests and evidence can reproduce a
-  game state from a seed plus an input sequence. Never commit to `main`.
-- **Environment quick reference.** Node 22+ is present (`node --version`). No
-  package manager, framework, or test runner is installed yet.
-- **Local test infrastructure.** None yet. Unit tests for simulation logic plus
-  `/evidence-driven-testing` captures for the rendered game.
+- **Checks**: `npm run typecheck` (tsc), `npm run lint` (ESLint + Prettier),
+  `npm test` (Vitest), `npm run build`.
+- **Invariants**: the simulation is deterministic and frame-rate independent
+  (fixed timestep), so a game state reproduces from a seed plus an input
+  sequence. The core has no DOM or Canvas imports. Never commit to `main`.
+- **Environment quick reference.** Node 22 and npm 11 are present. X11 display
+  `:0` with the ffmpeg toolchain, so the `/evidence-driven-testing` recorder
+  captures the screen (`evidence.py doctor` reports ready). Playwright chromium
+  is cached; the Chrome DevTools MCP and `agent-browser` drive the browser. The
+  Vite dev server serves on `http://localhost:5173`.
+- **Local test infrastructure.** Vitest for the simulation core; recorded
+  evidence for the rendered game. Playwright drives the headless path when no
+  display is available.
 
 ## Agent skills
 
@@ -128,5 +137,6 @@ Single-context: one `GLOSSARY.md` plus `docs/adr/` at the repo root. See `docs/a
 |---|---|
 | `new-feature`, `code-structure`, `evidence-driven-testing`, `greploop`, `greploop-apps`, `before-and-after`, `unslop` | [`michaelshimeles/skills`](https://github.com/michaelshimeles/skills) |
 | `grilling`, `domain-modeling`, `to-spec`, `to-tickets`, `triage`, `code-review`, `pr`, `implement`, and the rest of the engineering/productivity set | [`mattpocock/skills`](https://github.com/mattpocock/skills) |
+| `next-ticket` | repo-local; composes the four beats into one per-ticket runner (`.agents/skills/next-ticket/`) |
 
 `skills-lock.json` records the exact source and hash of every installed skill.
