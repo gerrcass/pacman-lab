@@ -104,15 +104,20 @@ PR is merged or closed.
 - **Branch convention.** Worktree dir `.worktrees/` (gitignored), branch prefix
   `agent/`.
 - **Checks**: `npm run typecheck` (tsc), `npm run lint` (ESLint + Prettier),
-  `npm test` (Vitest), `npm run build`.
+  `npm test` (Vitest), `npm run deps` (dependency-cruiser), and `npm run
+  build`.
 - **Invariants**: the simulation is deterministic and frame-rate independent
   (fixed timestep), so a game state reproduces from a seed plus an input
-  sequence. The core has no DOM or Canvas imports. Never commit to `main`.
+  sequence. The core has no DOM or Canvas imports, and the render layer does not
+  reach into the core's internals; `npm run deps` enforces both. Never commit to
+  `main`.
 - **Environment quick reference.** Node 22 and npm 11 are present. X11 display
   `:0` with the ffmpeg toolchain, so the `/evidence-driven-testing` recorder
   captures the screen (`evidence.py doctor` reports ready). Playwright chromium
   is cached; the Chrome DevTools MCP and `agent-browser` drive the browser. The
-  Vite dev server serves on `http://localhost:5173`.
+  Vite dev server serves on `http://localhost:5173`. The evidence recorder
+  captures the X11 display, so drive the browser headed on `:0`; with no display
+  use the Playwright headless path.
 - **Local test infrastructure.** Vitest for the simulation core; recorded
   evidence for the rendered game. Playwright drives the headless path when no
   display is available.
