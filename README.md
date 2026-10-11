@@ -7,8 +7,10 @@ for a four-beat agent workflow.
 
 The design is settled and published as the spec
 ([issue #1](https://github.com/gerrcass/pacman-lab/issues/1), labelled
-`ready-for-agent`). The work is split into tickets with `/to-tickets`. There is
-no code yet. Implementation runs one ticket per session through `/next-ticket`.
+`ready-for-agent`). The work is split into tickets with `/to-tickets`.
+Implementation runs one ticket per session through `/next-ticket`. The scaffold
+is in place: a TypeScript + Vite app that draws the classic Maze, with the
+repo's checks wired up. Game logic is still to come.
 
 ## The workflow
 
@@ -50,7 +52,11 @@ Install or refresh with `npx skills add michaelshimeles/skills`.
 Node 22+ and npm 11 are required. The stack is TypeScript + Vite with the Canvas
 2D API, installed with npm (ADR-0002). The simulation core is deterministic
 (ADR-0001) and the build is host-agnostic static output (ADR-0003). Checks:
-`npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.
+`npm run typecheck`, `npm run lint`, `npm test`, `npm run deps`, and
+`npm run build`.
+
+`npm run build` emits static assets to `dist/`. Set `BASE_PATH` to build for a
+sub-path, e.g. `BASE_PATH=/pacman-lab/ npm run build` for GitHub Pages.
 
 ## Layout
 
@@ -63,6 +69,11 @@ docs/agents/              issue-tracker, triage-label, domain-doc config,
                           and workflow learnings
 docs/adr/                 architecture decision records (0001-0003)
 GLOSSARY.md               domain vocabulary
+index.html                the app entry
+src/packages/             deep modules; each hides its implementation in lib/
+  core/                   pure, deterministic simulation (ADR-0001)
+  render/                 Canvas 2D rendering
+  app/                    orchestration and the frame loop
 .worktrees/               per-task git worktrees (gitignored)
 .artifacts/               evidence captures (gitignored)
 ```

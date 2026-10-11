@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.worktrees/
+.artifacts/
+.agents/
+skills-lock.json
+package-lock.json
+*.md
