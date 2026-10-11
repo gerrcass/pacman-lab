@@ -3,4 +3,16 @@ import { CLASSIC_MAZE_ROWS, parseMaze } from "./lib/maze";
 export { CLASSIC_MAZE_ROWS, MAZE_COLUMNS, MAZE_ROWS, parseMaze, tileAt } from "./lib/maze";
 export type { GridPosition, Maze, Tile, TileType } from "./lib/maze";
 
+export type { Direction } from "./lib/direction";
+
+export { createSimulation } from "./lib/simulation";
+export type {
+  Difficulty,
+  Intent,
+  PacmanSnapshot,
+  Simulation,
+  SimulationConfig,
+  Snapshot,
+} from "./lib/simulation";
+
 export const CLASSIC_MAZE = parseMaze(CLASSIC_MAZE_ROWS);
