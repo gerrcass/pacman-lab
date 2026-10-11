@@ -26,6 +26,27 @@ function drawWall(ctx: CanvasRenderingContext2D, maze: Maze, x: number, y: numbe
   if (!isWall(maze, x, y + 1)) ctx.fillRect(px, py + far, TILE_SIZE, WALL_THICKNESS);
   if (!isWall(maze, x - 1, y)) ctx.fillRect(px, py, WALL_THICKNESS, TILE_SIZE);
   if (!isWall(maze, x + 1, y)) ctx.fillRect(px + far, py, WALL_THICKNESS, TILE_SIZE);
+
+  // Where the outline turns around a diagonal corridor, the two strips meet at
+  // this tile's corner. It has no exposed side of its own there, so paint the
+  // corner pixel to join them.
+  const corner = (dx: number, dy: number): void => {
+    const diagonal = !isWall(maze, x + dx, y + dy);
+    const sideX = isWall(maze, x + dx, y);
+    const sideY = isWall(maze, x, y + dy);
+    if (diagonal && sideX && sideY) {
+      ctx.fillRect(
+        px + (dx > 0 ? far : 0),
+        py + (dy > 0 ? far : 0),
+        WALL_THICKNESS,
+        WALL_THICKNESS,
+      );
+    }
+  };
+  corner(-1, -1);
+  corner(1, -1);
+  corner(-1, 1);
+  corner(1, 1);
 }
 
 function drawPellet(ctx: CanvasRenderingContext2D, type: TileType, x: number, y: number): void {
