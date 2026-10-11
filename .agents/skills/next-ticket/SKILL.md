@@ -13,10 +13,13 @@ per session, repeated until the frontier is empty.
 ## 1. Pick the ticket
 
 Fetch `origin/main` and scope-check open PRs, then take the first ticket on the
-frontier: open, `ready-for-agent`, no open blocker, no assignee. The frontier
+frontier: an open implementation ticket for the spec, `ready-for-agent`, no open
+blocker, no assignee. Never the parent spec issue, even though `to-spec` also
+labels it `ready-for-agent`: where the tracker has sub-issues, select among the
+spec's sub-issues; otherwise drop any issue that has children. The frontier
 rules live in `docs/agents/issue-tracker.md`. Announce its number and title, and
 claim it (assign yourself).
-Completion: a claimed ticket that is genuinely unblocked.
+Completion: a claimed ticket that is genuinely unblocked and is not the spec.
 
 ## 2. Isolate
 
