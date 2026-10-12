@@ -8,6 +8,30 @@ a skill, a tooling gap, a review finding that changed a rule, or a mistake worth
 not repeating. One short entry per event, with the issue or PR that acted on it.
 Run `/retro` at the end of a hard session and land its findings here.
 
+## 2026-10-12 — Capture transient canvas states with Playwright's clock
+
+The `:0` recorder captures the desktop, which renders black, and MCP screenshots
+take about two seconds, long enough to miss a 1.5-second screen such as READY.
+Playwright's fake clock fixes both: `page.clock.install()` then
+`page.clock.runFor(ms)` steps the app's requestAnimationFrame exactly, so a
+capture can stop on a transient screen. For a state that is impractical to reach
+live (LEVEL CLEAR), serve a throwaway Vite page that drives the real flow and
+render modules with a scripted simulation, then screenshot that. PR #25.
+
+## 2026-10-12 — Launch a dev server and check it in separate tool calls
+
+One command that started the server with `setsid nohup npx vite ... </dev/null &`
+and then curled the port still held the shell tool to its 120-second timeout,
+even though the server came up correctly; the next call found it live. Launch in
+one call, then confirm the port answers your process in the next. PR #25.
+
+## 2026-10-12 — A review bot does not know the repo's testing policy
+
+Greptile asked for a keyboard unit test that this repo's testing decisions
+exclude on purpose: input and visual behavior are covered by recorded evidence
+instead. Decide by the repo policy, and resolve the thread with the reason
+rather than adding an out-of-policy test to satisfy the bot. PR #25.
+
 ## 2026-10-12 — No window maps to `:0`, and Playwright video writes nothing; sample frames
 
 Neither a headed Chromium (`--ozone-platform=x11`) nor the `agent-browser` /
