@@ -110,8 +110,8 @@ before you change a skill or the workflow.
   static output (ADR-0003).
 - **Branch convention.** Worktree dir `.worktrees/` (gitignored), branch prefix
   `agent/`.
-- **Packages.** `src/packages/{core,render,app}` are deep modules: import them
-  only through their entry points (the root files), never their `lib/`. See
+- **Packages.** `src/packages/{core,render,app,audio}` are deep modules: import
+  them only through their entry points (the root files), never their `lib/`. See
   [src/packages/README.md](./src/packages/README.md) before adding or importing
   one.
 - **Checks**: `npm run typecheck` (tsc), `npm run lint` (ESLint + Prettier),

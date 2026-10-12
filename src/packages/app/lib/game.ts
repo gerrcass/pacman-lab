@@ -1,4 +1,5 @@
 import { CLASSIC_MAZE, createSimulation } from "../../core";
+import { createAudio } from "../../audio";
 import {
   VIRTUAL_HEIGHT,
   VIRTUAL_WIDTH,
@@ -20,6 +21,7 @@ import {
 import { createGameFlow } from "../gameFlow";
 import type { FlowSnapshot } from "../gameFlow";
 import { createLocalStorageHighScore } from "../highScore";
+import { createSoundDriver } from "../sound";
 import { createGameInput } from "./input";
 
 const FIXED_STEP_MS = 1000 / 60;
@@ -39,6 +41,14 @@ export function createGame(canvas: HTMLCanvasElement): void {
   const input = createGameInput(window);
   const simulation = createSimulation({ maze: CLASSIC_MAZE, seed: 1 });
   const flow = createGameFlow({ simulation, highScore: createLocalStorageHighScore() });
+  const audio = createAudio();
+  const sound = createSoundDriver(audio);
+
+  // Browsers keep an AudioContext suspended until a user gesture; the first
+  // keypress or tap unlocks it.
+  const unlock = (): void => audio.resume();
+  window.addEventListener("keydown", unlock);
+  window.addEventListener("pointerdown", unlock);
 
   const resize = (): void => {
     const ratio = window.devicePixelRatio || 1;
@@ -96,11 +106,13 @@ export function createGame(canvas: HTMLCanvasElement): void {
     last = now;
 
     while (accumulator >= FIXED_STEP_MS) {
+      if (input.takeMute()) audio.toggleMuted();
       flow.step({
         desired: input.desired(),
         start: input.takeStart(),
         pause: input.takePause(),
       });
+      sound.step(flow.snapshot());
       accumulator -= FIXED_STEP_MS;
     }
 

@@ -22,9 +22,16 @@ export type GameInput = {
   takeStart(): boolean;
   /** True once per P or Escape press, for toggling pause. */
   takePause(): boolean;
+  /** True once per M press, for toggling mute. */
+  takeMute(): boolean;
 };
 
 const PAUSE_KEYS = new Set(["p", "escape"]);
+
+/** Whether a key toggles mute (M). */
+function isMuteKey(key: string): boolean {
+  return key.toLowerCase() === "m";
+}
 
 /**
  * Maps the keyboard to intents: arrow keys and WASD steer, Space or Enter
@@ -36,6 +43,7 @@ export function createGameInput(target: Window): GameInput {
   let desired: Direction | null = null;
   let startLatched = false;
   let pauseLatched = false;
+  let muteLatched = false;
 
   target.addEventListener("keydown", (event) => {
     // Ignore auto-repeat: a held key is one press, not a press every tick.
@@ -50,6 +58,12 @@ export function createGameInput(target: Window): GameInput {
     if (PAUSE_KEYS.has(event.key.toLowerCase())) {
       event.preventDefault();
       pauseLatched = true;
+      return;
+    }
+
+    if (isMuteKey(event.key)) {
+      event.preventDefault();
+      muteLatched = true;
       return;
     }
 
@@ -69,6 +83,11 @@ export function createGameInput(target: Window): GameInput {
     takePause: () => {
       const pressed = pauseLatched;
       pauseLatched = false;
+      return pressed;
+    },
+    takeMute: () => {
+      const pressed = muteLatched;
+      muteLatched = false;
       return pressed;
     },
   };

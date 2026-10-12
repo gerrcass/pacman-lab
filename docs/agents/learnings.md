@@ -11,6 +11,15 @@ current evidence-capture recipe, see
 [evidence.md](./evidence.md); the capture entries below are the history of how
 it got there.
 
+## 2026-10-12 — The evidence beat caught a per-tick siren retune
+
+Unit tests drove `setSiren` in single steps, so they passed while the audio
+service retuned the siren's frequency on every one of the 60 ticks a second:
+`setSiren` always called `applySiren` instead of returning when the level was
+unchanged. Recording the real `AudioContext` calls during a live run (the Prove
+beat) showed hundreds of retunes at the same value. Guard the repeated setter,
+and treat the runtime capture as the check that unit tests cannot give. #12.
+
 ## 2026-10-12 — PRs run the repo checks in CI
 
 The only workflow was `deploy.yml`, and it runs on push to `main` after merge,

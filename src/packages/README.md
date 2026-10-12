@@ -26,7 +26,8 @@ The packages:
 | `core` | The pure, deterministic simulation (ADR-0001). No DOM, no Canvas. |
 | `render` | Canvas 2D rendering. Reads the core through its entry point. |
 | `app` | Orchestration: owns the canvas, the frame loop, and game states. |
+| `audio` | Procedural Web Audio SFX with a mute switch. No simulation knowledge. |
 
 `npm run deps` (dependency-cruiser, config in `.dependency-cruiser.cjs`) enforces
-all of this, plus the layering: `core` is a pure leaf and `render` never depends
-on `app`.
+all of this, plus the layering: `core` is a pure leaf, `audio` is a browser-only
+leaf, and `render` never depends on `app`.
