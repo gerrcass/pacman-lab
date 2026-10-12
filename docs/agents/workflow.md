@@ -207,7 +207,9 @@ git status --short                 # see what changed
 git add <paths>                    # stage the ticket's files, e.g. src/ docs/
 git diff --cached                  # review the staged diff before committing
 git commit
-git push -u origin agent/<task>
+git fetch origin && git rebase origin/main
+npm run typecheck && npm run lint && npm test && npm run deps && npm run build
+git push -u origin agent/<task>    # rebasing a pushed branch: --force-with-lease
 gh pr create --title "..." --body "..."   # include before/after evidence
 gh pr checks <n> --watch                   # CI + Greptile
 #   ...fix Greptile findings, re-push, until 5/5 with no open threads...
