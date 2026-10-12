@@ -38,7 +38,7 @@ The design conversation runs earlier, through `/grilling` and `/domain-modeling`
 
 ## Skills
 
-Skills come from two upstream collections, pinned in `skills-lock.json`:
+Skills come from three upstream collections, pinned in `skills-lock.json`:
 
 - [`michaelshimeles/skills`](https://github.com/michaelshimeles/skills):
   `new-feature`, `code-structure`, `evidence-driven-testing`, `greploop`,
@@ -46,9 +46,11 @@ Skills come from two upstream collections, pinned in `skills-lock.json`:
 - [`mattpocock/skills`](https://github.com/mattpocock/skills): `grilling`,
   `domain-modeling`, `to-spec`, `to-tickets`, `triage`, `code-review`, and the
   rest of the engineering and productivity set.
+- [`vercel-labs/skills`](https://github.com/vercel-labs/skills): `find-skills`.
 - Repo-local: `next-ticket`, the per-ticket runner that composes the four beats.
 
-Install or refresh with `npx skills add michaelshimeles/skills`.
+Install or refresh the vendored skills with `npx skills add` once per source:
+`michaelshimeles/skills`, `mattpocock/skills`, and `vercel-labs/skills`.
 
 ## Setup
 

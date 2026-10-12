@@ -149,7 +149,9 @@ Skills come from two upstream collections plus this repo:
   beside the upstream `implement`.
 - Repo-local skills are tracked by git alone; leave them out of the lockfile.
 
-Install or refresh the vendored set with `npx skills add michaelshimeles/skills`.
+Install or refresh the vendored set with `npx skills add` once per source in the
+lockfile: `michaelshimeles/skills`, `mattpocock/skills`, and
+`vercel-labs/skills`.
 
 ## Multi-agent rules
 
