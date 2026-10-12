@@ -48,6 +48,7 @@ const GLYPHS: Readonly<Record<string, readonly string[]>> = {
   Z: ["###", "  #", " # ", "#  ", "###"],
   " ": ["   ", "   ", "   ", "   ", "   "],
   "-": ["   ", "   ", "###", "   ", "   "],
+  "!": [" # ", " # ", " # ", "   ", " # "],
 };
 
 export function textWidth(text: string, pixel: number): number {

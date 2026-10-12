@@ -42,4 +42,25 @@ describe("the localStorage high score store", () => {
     expect(storage.getItem(HIGH_SCORE_KEY)).toBe("1234");
     expect(createLocalStorageHighScore(HIGH_SCORE_KEY, storage).read()).toBe(1234);
   });
+
+  it("reads 0 when reading storage throws", () => {
+    const storage = {
+      getItem: () => {
+        throw new Error("storage blocked");
+      },
+    } as unknown as Storage;
+    expect(createLocalStorageHighScore(HIGH_SCORE_KEY, storage).read()).toBe(0);
+  });
+
+  it("keeps the score in memory when writing throws", () => {
+    const storage = {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("storage full");
+      },
+    } as unknown as Storage;
+    const store = createLocalStorageHighScore(HIGH_SCORE_KEY, storage);
+    store.write(500);
+    expect(store.read()).toBe(500);
+  });
 });

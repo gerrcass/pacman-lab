@@ -3,23 +3,54 @@ import type { HighScoreStore } from "./gameFlow";
 /** Where the high score lives in localStorage when no key is given. */
 export const HIGH_SCORE_KEY = "pacman.highScore";
 
+function parse(raw: string | null | undefined): number {
+  if (raw === null || raw === undefined) return 0;
+  const value = Number.parseInt(raw, 10);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
 /**
- * A HighScoreStore backed by localStorage. Reads that are missing or corrupt
- * resolve to 0, so a bad value never breaks the title or game over screens.
+ * A HighScoreStore backed by localStorage. Storage can be blocked or full, so
+ * every access is guarded: a missing or corrupt value reads as 0, and when
+ * storage is unavailable the score still lives in memory for the session.
  */
 export function createLocalStorageHighScore(
   key: string = HIGH_SCORE_KEY,
-  storage: Storage = window.localStorage,
+  storage?: Storage,
 ): HighScoreStore {
+  const backing = (): Storage | null => {
+    if (storage !== undefined) return storage;
+    try {
+      return window.localStorage;
+    } catch {
+      return null;
+    }
+  };
+
+  let cached = 0;
+  let loaded = false;
+  const store = backing();
+
   return {
     read: () => {
-      const raw = storage.getItem(key);
-      if (raw === null) return 0;
-      const value = Number.parseInt(raw, 10);
-      return Number.isFinite(value) && value > 0 ? value : 0;
+      if (!loaded) {
+        loaded = true;
+        try {
+          cached = parse(store?.getItem(key));
+        } catch {
+          cached = 0;
+        }
+      }
+      return cached;
     },
     write: (value) => {
-      storage.setItem(key, String(Math.floor(value)));
+      cached = Math.floor(value);
+      loaded = true;
+      try {
+        store?.setItem(key, String(cached));
+      } catch {
+        // Storage is blocked or full; keep the score in memory.
+      }
     },
   };
 }

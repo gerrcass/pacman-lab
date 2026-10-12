@@ -38,6 +38,9 @@ export function createGameInput(target: Window): GameInput {
   let pauseLatched = false;
 
   target.addEventListener("keydown", (event) => {
+    // Ignore auto-repeat: a held key is one press, not a press every tick.
+    if (event.repeat) return;
+
     if (event.key === " " || event.key === "Enter") {
       event.preventDefault();
       startLatched = true;
