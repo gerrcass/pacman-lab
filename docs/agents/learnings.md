@@ -8,6 +8,20 @@ a skill, a tooling gap, a review finding that changed a rule, or a mistake worth
 not repeating. One short entry per event, with the issue or PR that acted on it.
 Run `/retro` at the end of a hard session and land its findings here.
 
+## 2026-10-12 — No window maps to `:0`, and Playwright video writes nothing; sample frames
+
+Neither a headed Chromium (`--ozone-platform=x11`) nor the `agent-browser` /
+`before-and-after` instances appeared on `DISPLAY=:0`. An `ffmpeg -f x11grab`
+grab of `:0` showed a black desktop with only the cursor, so the
+`/evidence-driven-testing` recorder captured nothing useful. Playwright's own
+`recordVideo` also left its directory empty (no `.webm`, even with the matching
+1248 browser), so `video.saveAs` failed with ENOENT. What worked: drive the page
+(Chrome DevTools MCP or Playwright), screenshot the live app in a fixed-interval
+loop, then `ffmpeg -framerate 10 -i frames/f_%05d.png -c:v libx264 after.mp4`.
+Label it a live frame-sampled capture, not a recorder clip. Also `pkill -f
+<pattern>` kills the agent's own shell when the pattern appears in the command
+line; kill by PID instead. PR #24.
+
 ## 2026-10-12 — Embed PR evidence as Markdown images, not bare URLs
 
 The `before-and-after` CLI and the catbox fallback both hand back a hosted URL.
