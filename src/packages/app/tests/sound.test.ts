@@ -129,6 +129,18 @@ describe("play events", () => {
     expect(sounds.ghost).toBe(2);
   });
 
+  it("still plays the Ghost-eaten cue when another Ghost respawns on the same tick", () => {
+    const { sink, sounds } = listener();
+    const driver = createSoundDriver(sink);
+    driver.step(
+      frame("playing", idleBoard({ ghosts: [ghost("blinky", "eaten"), ghost("pinky", "chase")] })),
+    );
+    driver.step(
+      frame("playing", idleBoard({ ghosts: [ghost("blinky", "chase"), ghost("pinky", "eaten")] })),
+    );
+    expect(sounds.ghost).toBe(1);
+  });
+
   it("plays the death cue once on entering the death screen", () => {
     const { sink, sounds } = listener();
     const driver = createSoundDriver(sink);
@@ -149,19 +161,22 @@ describe("play events", () => {
 });
 
 describe("siren", () => {
-  it("plays at the Level while live and stops off the live screen", () => {
+  it("climbs with the share of the Level's Pellets eaten and stops off the live screen", () => {
     const { sink, sounds } = listener();
     const driver = createSoundDriver(sink);
-    driver.step(frame("playing", idleBoard({ level: 2 })));
+    driver.step(frame("playing", idleBoard({ pelletsRemaining: 100 })));
+    expect(sounds.siren.at(-1)).toBe(1);
+
+    driver.step(frame("playing", idleBoard({ pelletsRemaining: 60 })));
     expect(sounds.siren.at(-1)).toBe(2);
 
-    driver.step(frame("paused", idleBoard({ level: 2 })));
+    driver.step(frame("playing", idleBoard({ pelletsRemaining: 20 })));
+    expect(sounds.siren.at(-1)).toBe(3);
+
+    driver.step(frame("paused", idleBoard({ pelletsRemaining: 20 })));
     expect(sounds.siren.at(-1)).toBe(0);
 
-    driver.step(frame("title", idleBoard({ level: 1 })));
-    expect(sounds.siren.at(-1)).toBe(0);
-
-    driver.step(frame("playing", idleBoard({ level: 3 })));
+    driver.step(frame("playing", idleBoard({ pelletsRemaining: 20 })));
     expect(sounds.siren.at(-1)).toBe(3);
   });
 });

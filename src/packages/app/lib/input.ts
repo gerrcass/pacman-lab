@@ -29,7 +29,7 @@ export type GameInput = {
 const PAUSE_KEYS = new Set(["p", "escape"]);
 
 /** Whether a key toggles mute (M). */
-export function isMuteKey(key: string): boolean {
+function isMuteKey(key: string): boolean {
   return key.toLowerCase() === "m";
 }
 
