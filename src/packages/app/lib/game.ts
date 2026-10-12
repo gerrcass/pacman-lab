@@ -82,6 +82,7 @@ export function createGame(canvas: HTMLCanvasElement): void {
     if (screen === "boot") {
       drawBoot(ctx, view);
       drawTransition(ctx, transition);
+      if (fx.crt) drawCrt(ctx, view);
       return;
     }
 

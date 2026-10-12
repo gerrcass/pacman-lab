@@ -1,5 +1,6 @@
-import type { PelletMarker } from "../core";
+import type { GridPosition, PelletMarker } from "../core";
 import type { Particle } from "../render";
+import { enteredDeath } from "./gameFlow";
 import type { FlowSnapshot } from "./gameFlow";
 
 /** Ticks a Pellet-eat particle lives before it fades out. */
@@ -36,12 +37,12 @@ export type Effects = {
   snapshot(): EffectState;
 };
 
-function tileKey(tile: { readonly x: number; readonly y: number }): string {
+function tileKey(tile: GridPosition): string {
   return `${tile.x},${tile.y}`;
 }
 
-/** The Pellets that were on the previous board but are gone from this one. */
-function eatenPellets(
+/** The Pellets the previous Maze held that the current one no longer does. */
+function pelletsGone(
   previous: readonly PelletMarker[],
   current: readonly PelletMarker[],
 ): readonly PelletMarker[] {
@@ -101,6 +102,20 @@ function shakeOffset(ticksLeft: number): Shake {
 }
 
 /**
+ * The Pellets eaten on a live tick, from the previous frame and this one. A
+ * Level clear refills the Maze from the same layout, so its last Pellet would
+ * survive a plain set difference; on a Level change the Pellets still left on
+ * the previous Maze are exactly the ones just eaten.
+ */
+function eatenPellets(
+  lastBoard: FlowSnapshot["board"],
+  board: FlowSnapshot["board"],
+): readonly PelletMarker[] {
+  if (board.level !== lastBoard.level) return lastBoard.pellets;
+  return pelletsGone(lastBoard.pellets, board.pellets);
+}
+
+/**
  * The visual-juice driver: it reads only the flow's public snapshot and turns
  * its changes into particles and a screen shake, the same way the sound driver
  * turns them into sound. Pellets eaten on a live tick throw particles at their
@@ -120,22 +135,12 @@ export function createEffects(): Effects {
 
       particles = advanceParticles(particles);
 
-      if (board.state === "death" && lastBoard?.state !== "death") shakeTicksLeft = SHAKE_TICKS;
+      if (enteredDeath(previous, snapshot)) shakeTicksLeft = SHAKE_TICKS;
       if (shakeTicksLeft > 0) shakeTicksLeft -= 1;
 
-      // Particles are eaten Pellets: only while a run is live, and only the
-      // Pellets that left the board since the last tick at the same Level. A
-      // Level change refills the board, so its Pellet count jumps up, and the
-      // same-Level guard keeps that from reading as a wave of eaten Pellets.
-      if (
-        previous?.screen === "playing" &&
-        lastBoard !== null &&
-        board.level === lastBoard.level &&
-        board.pelletsRemaining < lastBoard.pelletsRemaining
-      ) {
-        for (const pellet of eatenPellets(lastBoard.pellets, board.pellets)) {
-          spawnParticles(particles, pellet);
-        }
+      // Particles are eaten Pellets: only a live tick eats one, never a Menu.
+      if (previous?.screen === "playing" && lastBoard !== null) {
+        for (const pellet of eatenPellets(lastBoard, board)) spawnParticles(particles, pellet);
       }
 
       previous = snapshot;

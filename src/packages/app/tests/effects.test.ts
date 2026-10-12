@@ -1,41 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { PelletMarker, Snapshot } from "../../core";
-import type { FlowSnapshot, Screen } from "../gameFlow";
+import type { PelletMarker } from "../../core";
 import { PARTICLE_TICKS, SHAKE_TICKS, createEffects } from "../effects";
-
-function idleBoard(overrides: Partial<Snapshot> = {}): Snapshot {
-  return {
-    tick: 0,
-    state: "playing",
-    score: 0,
-    lives: 3,
-    level: 1,
-    deathTicksLeft: 0,
-    pelletsRemaining: 10,
-    pellets: [],
-    fruit: null,
-    pacman: {
-      tile: { x: 0, y: 0 },
-      position: { x: 0, y: 0 },
-      direction: "left",
-      next: null,
-    },
-    ghosts: [],
-    ...overrides,
-  };
-}
-
-function frame(screen: Screen, board: Snapshot): FlowSnapshot {
-  return {
-    screen,
-    board,
-    score: board.score,
-    lives: board.lives,
-    level: board.level,
-    highScore: 0,
-    transition: 0,
-  };
-}
+import { frame, idleBoard } from "./fixtures";
 
 function pelletsAt(count: number, kind: PelletMarker["kind"] = "pellet"): PelletMarker[] {
   const markers: PelletMarker[] = [];
@@ -86,15 +52,29 @@ describe("Pellet particles", () => {
     expect(effects.snapshot().particles).toHaveLength(0);
   });
 
-  it("does not spawn a wave when a Level change refills the Maze", () => {
+  it("spawns for the last Pellet on a Level change, not for the refilled Maze", () => {
     const effects = createEffects();
     effects.step(
-      frame("playing", idleBoard({ level: 1, pelletsRemaining: 1, pellets: pelletsAt(1) })),
+      frame(
+        "playing",
+        idleBoard({
+          level: 1,
+          pelletsRemaining: 1,
+          pellets: [{ tile: { x: 7, y: 9 }, kind: "pellet" }],
+        }),
+      ),
     );
     effects.step(
-      frame("levelClear", idleBoard({ level: 2, pelletsRemaining: 244, pellets: pelletsAt(4) })),
+      frame("levelClear", idleBoard({ level: 2, pelletsRemaining: 244, pellets: pelletsAt(40) })),
     );
-    expect(effects.snapshot().particles).toHaveLength(0);
+
+    const particles = effects.snapshot().particles;
+    expect(particles.length).toBeGreaterThan(0);
+    expect(particles.length).toBeLessThan(20);
+    for (const particle of particles) {
+      expect(particle.x).toBe(7.5);
+      expect(particle.y).toBe(9.5);
+    }
   });
 
   it("fades each particle out after its lifetime", () => {
