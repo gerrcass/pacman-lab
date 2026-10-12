@@ -32,8 +32,14 @@ fi
 script_dir="$(cd "$(dirname "$script")" && pwd)"
 link="$script_dir/node_modules"
 
-# Refuse to replace a real node_modules (for example the repo's own).
-if [ -e "$link" ] && [ ! -L "$link" ]; then
+# Never replace dependencies that are already there. A real node_modules, or a
+# symlink to somewhere other than the cache, is left alone.
+if [ -L "$link" ]; then
+  if [ "$(readlink -f "$link" 2>/dev/null)" != "$(readlink -f "$modules")" ]; then
+    echo "pw.sh: $link exists and does not point to the playwright cache" >&2
+    exit 1
+  fi
+elif [ -e "$link" ]; then
   echo "pw.sh: refusing to replace existing $link" >&2
   exit 1
 fi
