@@ -1,5 +1,5 @@
-import { MAZE_COLUMNS, MAZE_ROWS } from "../../core";
-import type { Direction, PacmanSnapshot } from "../../core";
+import { DEATH_TICKS, MAZE_COLUMNS, MAZE_ROWS } from "../../core";
+import type { Direction, Snapshot } from "../../core";
 import { COLORS, MAZE_OFFSET_X, MAZE_OFFSET_Y, TILE_SIZE } from "./constants";
 import type { Viewport } from "./viewport";
 
@@ -13,11 +13,38 @@ const FACING: Readonly<Record<Direction, number>> = {
   up: -Math.PI / 2,
 };
 
+/** The mouth half-angle at a point through the death animation: it opens from
+ * the resting mouth until PacMan has swallowed himself and vanished. */
+function mouthAngle(deathTicksLeft: number): number {
+  const progress = 1 - deathTicksLeft / DEATH_TICKS;
+  return MOUTH_ANGLE + progress * (Math.PI - MOUTH_ANGLE);
+}
+
+/** Fills one PacMan wedge, a circle with a bite of `mouth` radians out of it. */
+export function drawPacmanWedge(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  radius: number,
+  facing: number,
+  mouth: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, radius, facing + mouth, facing - mouth + Math.PI * 2);
+  ctx.closePath();
+  ctx.fill();
+}
+
 export function drawPacman(
   ctx: CanvasRenderingContext2D,
-  pacman: PacmanSnapshot,
+  snapshot: Snapshot,
   viewport: Viewport,
 ): void {
+  // The death animation ended with PacMan gone; leave him gone on the game over screen.
+  if (snapshot.state === "gameOver") return;
+
+  const pacman = snapshot.pacman;
   ctx.save();
   ctx.setTransform(viewport.scale, 0, 0, viewport.scale, viewport.offsetX, viewport.offsetY);
 
@@ -29,14 +56,11 @@ export function drawPacman(
 
   ctx.fillStyle = COLORS.pacman;
   const facing = FACING[pacman.direction];
+  const mouth = snapshot.state === "death" ? mouthAngle(snapshot.deathTicksLeft) : MOUTH_ANGLE;
   const cy = MAZE_OFFSET_Y + pacman.position.y * TILE_SIZE + TILE_SIZE / 2;
   const drawAt = (tileX: number): void => {
     const cx = MAZE_OFFSET_X + tileX * TILE_SIZE + TILE_SIZE / 2;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, RADIUS, facing + MOUTH_ANGLE, facing - MOUTH_ANGLE + Math.PI * 2);
-    ctx.closePath();
-    ctx.fill();
+    drawPacmanWedge(ctx, cx, cy, RADIUS, facing, mouth);
   };
 
   // Near a tunnel mouth, draw the wrapped copies too so the wrap reads as a slide

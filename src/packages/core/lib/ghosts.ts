@@ -37,7 +37,15 @@ export type GhostState = {
   pendingReverse: boolean;
   /** This tick's motion as an unwrapped polyline, for swept collision. */
   path: Position[];
+  /** What this tick's motion means to PacMan, from the mode it started in. */
+  contact: GhostContact;
 };
+
+/**
+ * What PacMan's overlap with a Ghost's tick-long motion means: `"lethal"` costs
+ * a life, `"frightened"` gets the Ghost eaten, `"none"` is safe.
+ */
+export type GhostContact = "none" | "lethal" | "frightened";
 
 /** Arcade tie-break order when several directions tie on distance. */
 const DIRECTION_ORDER: readonly Direction[] = ["up", "left", "down", "right"];
@@ -57,6 +65,7 @@ export function createGhostStates(starts: readonly GhostStart[]): GhostState[] {
     bobDirection: "up",
     pendingReverse: false,
     path: [],
+    contact: "none",
   }));
 }
 
@@ -76,6 +85,18 @@ export function markGhostsForReversal(
 /** Whether a Ghost is Frightened: on the grid, timer running, not yet eaten. */
 export function isFrightened(state: GhostState, frightenedTicksLeft: number): boolean {
   return frightenedTicksLeft > 0 && !state.eatenRecovering && state.mode !== "eaten";
+}
+
+/**
+ * How a Ghost's motion this tick should be treated, judged from the mode it
+ * starts the tick in. A Ghost whose mode changes mid-tick (eaten eyes reaching
+ * home, a housed Ghost stepping out) travelled as its starting mode, so the
+ * whole path carries that meaning and the matching speed.
+ */
+function contactFor(state: GhostState, frightenedTicksLeft: number): GhostContact {
+  if (state.mode === "eaten") return "none";
+  if (state.leaving || state.mode === "house") return "none";
+  return isFrightened(state, frightenedTicksLeft) ? "frightened" : "lethal";
 }
 
 /** Sends a Ghost home as eyes after PacMan eats it. */
@@ -112,6 +133,7 @@ export function updateGhosts(states: readonly GhostState[], context: GhostContex
     tiles.set(state.id, centeredTile(state.position, context.maze.width));
     if (context.frightenedTicksLeft === 0) state.eatenRecovering = false;
     state.path = [{ x: state.position.x, y: state.position.y }];
+    state.contact = contactFor(state, context.frightenedTicksLeft);
   }
   const blinkyTile = tiles.get("blinky") ?? context.pacman.tile;
 

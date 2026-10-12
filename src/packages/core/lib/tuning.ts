@@ -28,6 +28,9 @@ export type HouseGhostId = "pinky" | "inky" | "clyde";
 /** Ticks per second of the fixed simulation step. */
 const TICKS_PER_SECOND = 60;
 
+/** The arcade death animation length, in fixed ticks (about 1.5s). */
+export const DEATH_TICKS = 90;
+
 function seconds(value: number): number {
   return Math.round(value * TICKS_PER_SECOND);
 }

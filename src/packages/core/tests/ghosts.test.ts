@@ -154,7 +154,16 @@ describe("Scatter/Chase schedule", () => {
   });
 
   it("returns to Scatter when the Chase phase expires", () => {
-    const sim = createSimulation({ maze: CLASSIC_MAZE, seed: 1 });
+    // PacMan is sealed off the cross, so a chasing Blinky cannot reach him and
+    // cut the run short before the phase boundary.
+    const sim = createSimulation({
+      maze: cross(),
+      seed: 1,
+      ghosts: {
+        starts: [start("blinky", 14, 14, "left", "scatter")],
+        schedule: scatterChaseSchedule(1),
+      },
+    });
     step(sim, 420 + 1200);
     expect(ghost(sim.snapshot(), "blinky").mode).toBe("chase");
     sim.step({ desired: null });

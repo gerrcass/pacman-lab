@@ -8,6 +8,7 @@ export type { Direction } from "./lib/direction";
 export { createSimulation } from "./lib/simulation";
 export type {
   Difficulty,
+  GameState,
   GhostConfig,
   GhostSnapshot,
   Intent,
@@ -19,6 +20,7 @@ export type {
 export type { PelletKind, PelletMarker } from "./lib/pellets";
 
 export {
+  DEATH_TICKS,
   frightenedGhostPoints,
   frightenedTicksForLevel,
   ghostReleasePellets,
