@@ -3,6 +3,7 @@ import type { Direction } from "./direction";
 import {
   EPSILON,
   advancePosition,
+  appendPathPoint,
   centeredTile,
   distanceToNextCenter,
   isCentered,
@@ -34,6 +35,8 @@ export type GhostState = {
   bobDirection: Direction;
   /** Set on a Scatter/Chase change; the Ghost reverses on its next move. */
   pendingReverse: boolean;
+  /** This tick's motion as an unwrapped polyline, for swept collision. */
+  path: Position[];
 };
 
 /** Arcade tie-break order when several directions tie on distance. */
@@ -53,6 +56,7 @@ export function createGhostStates(starts: readonly GhostStart[]): GhostState[] {
     exitTile: null,
     bobDirection: "up",
     pendingReverse: false,
+    path: [],
   }));
 }
 
@@ -107,6 +111,7 @@ export function updateGhosts(states: readonly GhostState[], context: GhostContex
   for (const state of states) {
     tiles.set(state.id, centeredTile(state.position, context.maze.width));
     if (context.frightenedTicksLeft === 0) state.eatenRecovering = false;
+    state.path = [{ x: state.position.x, y: state.position.y }];
   }
   const blinkyTile = tiles.get("blinky") ?? context.pacman.tile;
 
@@ -371,6 +376,7 @@ function moveGhostPath(
     const step = Math.min(budget, distanceToNextCenter(state.position, state.direction));
     if (step <= EPSILON) break;
     advancePosition(state.position, state.direction, step, maze.width);
+    appendPathPoint(state.path, state.position.x, state.position.y, maze.width);
     budget -= step;
     if (budget <= EPSILON) break;
   }

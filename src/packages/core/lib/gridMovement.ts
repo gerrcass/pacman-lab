@@ -52,3 +52,17 @@ export function advancePosition(
   position.x = wrapX(width, position.x + vector.x * distance);
   position.y += vector.y * distance;
 }
+
+/**
+ * Appends a point to a path, unwrapping x so consecutive points stay
+ * continuous across the tunnels. The result is a polyline safe to measure.
+ */
+export function appendPathPoint(path: Position[], x: number, y: number, width: number): void {
+  const previous = path[path.length - 1];
+  let unwrappedX = x;
+  if (previous !== undefined) {
+    while (unwrappedX - previous.x > width / 2) unwrappedX -= width;
+    while (unwrappedX - previous.x < -width / 2) unwrappedX += width;
+  }
+  path.push({ x: unwrappedX, y });
+}

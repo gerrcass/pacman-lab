@@ -3,6 +3,7 @@ import type { Direction } from "./direction";
 import {
   EPSILON,
   advancePosition,
+  appendPathPoint,
   centeredTile,
   distanceToNextCenter,
   isCentered,
@@ -139,6 +140,78 @@ function pointSegmentDistanceSq(p: Point, a: Point, b: Point): number {
   return ex * ex + ey * ey;
 }
 
+/** A mover's polyline as points on the tick's [0, 1] timeline. A mover that
+ * stops early holds its final point until t = 1. */
+type TimedPath = readonly { readonly t: number; readonly x: number; readonly y: number }[];
+
+function timedPath(path: readonly Point[], speed: number): TimedPath {
+  const points = [{ t: 0, x: path[0]!.x, y: path[0]!.y }];
+  let distance = 0;
+  for (let i = 1; i < path.length; i += 1) {
+    const previous = path[i - 1]!;
+    const current = path[i]!;
+    distance += Math.hypot(current.x - previous.x, current.y - previous.y);
+    points.push({ t: distance / speed, x: current.x, y: current.y });
+  }
+  const last = points[points.length - 1]!;
+  if (last.t < 1) points.push({ t: 1, x: last.x, y: last.y });
+  return points;
+}
+
+function sampleAt(path: TimedPath, t: number): Point {
+  if (t <= path[0]!.t) return { x: path[0]!.x, y: path[0]!.y };
+  for (let i = 0; i < path.length - 1; i += 1) {
+    const a = path[i]!;
+    const b = path[i + 1]!;
+    if (t <= b.t) {
+      const span = b.t - a.t;
+      const f = span <= 0 ? 0 : (t - a.t) / span;
+      return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+    }
+  }
+  const last = path[path.length - 1]!;
+  return { x: last.x, y: last.y };
+}
+
+/**
+ * Whether two constant-speed movers come within `radius` at any shared instant
+ * of the tick. Both move in straight lines between their path points, so on
+ * each merged time interval the separation is linear and the closest approach
+ * is a point-to-segment distance.
+ */
+function pathsCollide(
+  pacmanPath: readonly Point[],
+  pacmanSpeed: number,
+  ghostPath: readonly Point[],
+  ghostSpeed: number,
+  width: number,
+  radiusSq: number,
+): boolean {
+  const pacman = timedPath(pacmanPath, pacmanSpeed);
+  const ghost = timedPath(ghostPath, ghostSpeed);
+  // Put the Ghost's unwrapped path in PacMan's x frame (the tunnel shift).
+  const shift =
+    wrapDelta(ghostPath[0]!.x - pacmanPath[0]!.x, width) - (ghostPath[0]!.x - pacmanPath[0]!.x);
+
+  const times = [...new Set([...pacman.map((p) => p.t), ...ghost.map((g) => g.t)])].sort(
+    (a, b) => a - b,
+  );
+
+  const origin = { x: 0, y: 0 };
+  for (let i = 0; i < times.length - 1; i += 1) {
+    const t0 = times[i]!;
+    const t1 = times[i + 1]!;
+    const p0 = sampleAt(pacman, t0);
+    const p1 = sampleAt(pacman, t1);
+    const g0 = sampleAt(ghost, t0);
+    const g1 = sampleAt(ghost, t1);
+    const relStart = { x: g0.x + shift - p0.x, y: g0.y - p0.y };
+    const relEnd = { x: g1.x + shift - p1.x, y: g1.y - p1.y };
+    if (pointSegmentDistanceSq(origin, relStart, relEnd) <= radiusSq) return true;
+  }
+  return false;
+}
+
 export function createSimulation(config: SimulationConfig): Simulation {
   const { maze } = config;
   const difficulty = config.difficulty ?? DEFAULT_DIFFICULTY;
@@ -174,9 +247,8 @@ export function createSimulation(config: SimulationConfig): Simulation {
   // the move finishes so a Level-clear reset never happens mid-movement.
   const traversed: GridPosition[] = [];
 
-  // Where PacMan and each Ghost started the tick, for swept collision.
-  let pacmanStart = { x: position.x, y: position.y };
-  let ghostStarts: Point[] = [];
+  // PacMan's motion this tick as an unwrapped polyline, for swept collision.
+  let pacmanPath: Point[] = [{ x: position.x, y: position.y }];
 
   const atCenter = (): boolean => isCentered(position.x) && isCentered(position.y);
 
@@ -200,6 +272,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
 
   const move = (): void => {
     traversed.length = 0;
+    pacmanPath = [{ x: position.x, y: position.y }];
 
     // A reversal needs no tile center, so it applies the moment it is asked for.
     if (next !== null && next === opposite(direction)) {
@@ -222,6 +295,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
 
       const step = Math.min(budget, distanceToNextCenter(position, direction));
       advancePosition(position, direction, step, maze.width);
+      appendPathPoint(pacmanPath, position.x, position.y, maze.width);
       budget -= step;
       if (budget <= EPSILON) break;
     }
@@ -249,10 +323,8 @@ export function createSimulation(config: SimulationConfig): Simulation {
       if (frightenedTicks > 0) frightenedTicks -= 1;
       advanceSchedule();
       if (intent.desired !== null) next = intent.desired;
-      pacmanStart = { x: position.x, y: position.y };
       move();
       eatTraversed();
-      ghostStarts = ghosts.map((state) => ({ x: state.position.x, y: state.position.y }));
       updateGhosts(ghosts, {
         maze,
         pacman: { tile: currentTile(), direction },
@@ -317,35 +389,22 @@ export function createSimulation(config: SimulationConfig): Simulation {
 
   /**
    * Eats any Frightened Ghost PacMan overlaps, doubling the value each time.
-   * Both move in a straight line across the tick, so the Ghost's position
-   * relative to PacMan also moves in a straight line; the check finds the
-   * closest approach along that line, catching a crossing mid-tick.
+   * The check sweeps both movers' paths across the tick, so a fast PacMan or a
+   * Ghost that turns mid-tick still collides.
    */
   function resolveGhostEats(): void {
-    const origin = { x: 0, y: 0 };
-    const pacmanDelta = {
-      x: wrapDelta(position.x - pacmanStart.x, maze.width),
-      y: position.y - pacmanStart.y,
-    };
-
-    for (let i = 0; i < ghosts.length; i += 1) {
-      const state = ghosts[i]!;
+    for (const state of ghosts) {
       if (state.mode !== "frightened") continue;
-
-      const start = ghostStarts[i] ?? state.position;
-      const ghostDelta = {
-        x: wrapDelta(state.position.x - start.x, maze.width),
-        y: state.position.y - start.y,
-      };
-      const relativeStart = {
-        x: wrapDelta(start.x - pacmanStart.x, maze.width),
-        y: start.y - pacmanStart.y,
-      };
-      const relativeEnd = {
-        x: relativeStart.x + ghostDelta.x - pacmanDelta.x,
-        y: relativeStart.y + ghostDelta.y - pacmanDelta.y,
-      };
-      if (pointSegmentDistanceSq(origin, relativeStart, relativeEnd) > GHOST_EAT_DISTANCE_SQ) {
+      if (
+        !pathsCollide(
+          pacmanPath,
+          speed,
+          state.path,
+          frightenedSpeed,
+          maze.width,
+          GHOST_EAT_DISTANCE_SQ,
+        )
+      ) {
         continue;
       }
 
