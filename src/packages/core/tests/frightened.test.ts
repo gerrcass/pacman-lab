@@ -261,7 +261,7 @@ describe("frightened: eating Ghosts", () => {
     }
 
     expect(eaten).toBe(true);
-    expect(rejoinedMode).not.toBe("house");
+    expect(rejoinedMode).toBe("chase");
   });
 
   it("eats a Frightened Ghost crossed mid-tick at high speed", () => {
@@ -284,6 +284,28 @@ describe("frightened: eating Ghosts", () => {
 
     sim.step({ desired: null });
     expect(sim.snapshot().score).toBe(200);
+  });
+
+  it("does not eat a Ghost that trails PacMan without meeting", () => {
+    // Both head left; their paths overlap but they are never at the same place
+    // at the same time, so no eat.
+    const rows = blank();
+    openRow(rows, 14, 0, MAZE_COLUMNS - 1);
+    rows[14]![13] = "P";
+    rows[1]![1] = ".";
+    const sim = createSimulation({
+      maze: mazeOf(rows),
+      seed: 1,
+      difficulty: { pacmanTilesPerTick: 3 },
+      ghosts: {
+        starts: [start("blinky", 14, 14, "left", "chase")],
+        schedule: ALWAYS_CHASE,
+        frightenedTicks: 600,
+      },
+    });
+
+    sim.step({ desired: null });
+    expect(sim.snapshot().score).toBe(0);
   });
 
   it("returns a house Ghost to the house and releases it again", () => {
