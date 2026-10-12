@@ -309,24 +309,27 @@ describe("frightened: eating Ghosts", () => {
   });
 
   it("eats a Frightened Ghost across the tunnel seam", () => {
-    // Both cross the tunnel in the same tick; they meet near the seam.
+    // Both start at the left edge and move left, so they only meet after each
+    // has wrapped through the tunnel; the gap is still wide before the seam.
     const rows = blank();
     openRow(rows, 14, 0, MAZE_COLUMNS - 1);
-    rows[14]![2] = "P";
+    rows[14]![1] = "P";
     rows[1]![1] = ".";
     const sim = createSimulation({
       maze: mazeOf(rows),
       seed: 1,
       difficulty: { pacmanTilesPerTick: 3 },
       ghosts: {
-        starts: [start("blinky", 1, 14, "left", "chase")],
+        starts: [start("blinky", 0, 14, "left", "chase")],
         schedule: ALWAYS_CHASE,
         frightenedTicks: 600,
       },
     });
 
     sim.step({ desired: null });
-    expect(sim.snapshot().score).toBe(200);
+    const snap = sim.snapshot();
+    expect(snap.pacman.position.x).toBeGreaterThan(MAZE_COLUMNS / 2);
+    expect(snap.score).toBe(200);
   });
 
   it("returns a house Ghost to the house and releases it again", () => {
