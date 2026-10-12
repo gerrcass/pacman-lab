@@ -11,10 +11,9 @@ import {
 import type { Position } from "./gridMovement";
 import type { GridPosition, Maze } from "./maze";
 import { chaseTarget, scatterTarget } from "./targeting";
+import type { PacManPose } from "./targeting";
 import { GHOST_RELEASE_ROUTES } from "./tuning";
-import type { GhostId, GhostMode, GhostPhaseMode, GhostStart } from "./tuning";
-
-type HouseGhostId = "pinky" | "inky" | "clyde";
+import type { GhostId, GhostMode, GhostPhaseMode, GhostStart, HouseGhostId } from "./tuning";
 
 export type GhostState = {
   readonly id: GhostId;
@@ -59,12 +58,11 @@ export function reverseGhostStates(states: readonly GhostState[]): void {
 
 export type GhostContext = {
   readonly maze: Maze;
-  readonly pacmanTile: GridPosition;
-  readonly pacmanDirection: Direction;
+  readonly pacman: PacManPose;
   readonly globalMode: GhostPhaseMode;
   readonly speed: number;
   readonly pelletsEaten: number;
-  readonly releaseDots: Readonly<Record<HouseGhostId, number>>;
+  readonly releasePellets: Readonly<Record<HouseGhostId, number>>;
 };
 
 export function updateGhosts(states: readonly GhostState[], context: GhostContext): void {
@@ -74,7 +72,7 @@ export function updateGhosts(states: readonly GhostState[], context: GhostContex
   for (const state of states) {
     tiles.set(state.id, centeredTile(state.position, context.maze.width));
   }
-  const blinkyTile = tiles.get("blinky") ?? context.pacmanTile;
+  const blinkyTile = tiles.get("blinky") ?? context.pacman.tile;
 
   for (const state of states) {
     if (state.leaving) {
@@ -83,7 +81,7 @@ export function updateGhosts(states: readonly GhostState[], context: GhostContex
     }
 
     if (state.mode === "house") {
-      if (state.id !== "blinky" && context.pelletsEaten >= context.releaseDots[state.id]) {
+      if (state.id !== "blinky" && context.pelletsEaten >= context.releasePellets[state.id]) {
         beginLeaving(state, context.globalMode);
       } else {
         bob(state, context.speed);
@@ -98,7 +96,7 @@ export function updateGhosts(states: readonly GhostState[], context: GhostContex
       const target =
         state.mode === "scatter"
           ? scatterTarget(state.id)
-          : chaseTarget(state.id, tile, context.pacmanTile, context.pacmanDirection, blinkyTile);
+          : chaseTarget(state.id, tile, context.pacman, blinkyTile);
       moveGhost(context.maze, state, context.speed, target);
     }
   }

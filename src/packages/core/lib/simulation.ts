@@ -16,11 +16,11 @@ import { createPelletBoard } from "./pellets";
 import type { PelletMarker } from "./pellets";
 import {
   CLASSIC_GHOST_STARTS,
-  ghostReleaseDots,
+  ghostReleasePellets,
   ghostTilesPerTick,
   scatterChaseSchedule,
 } from "./tuning";
-import type { GhostId, GhostMode, GhostPhase, GhostStart } from "./tuning";
+import type { GhostId, GhostMode, GhostPhase, GhostStart, HouseGhostId } from "./tuning";
 
 /** One tick's worth of player intent: the direction the player is asking for. */
 export type Intent = {
@@ -74,7 +74,7 @@ export type GhostConfig = {
   /** Initial Ghost states; defaults to the classic arcade homes. */
   readonly starts?: readonly GhostStart[];
   /** Pellets eaten before each house Ghost is released. */
-  readonly releaseDots?: Readonly<Record<"pinky" | "inky" | "clyde", number>>;
+  readonly releasePellets?: Readonly<Record<HouseGhostId, number>>;
   /** Overrides the per-Level Scatter/Chase schedule. */
   readonly schedule?: readonly GhostPhase[];
 };
@@ -106,7 +106,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
   const speed = difficulty.pacmanTilesPerTick;
 
   const starts = config.ghosts?.starts ?? CLASSIC_GHOST_STARTS;
-  const releaseDots = config.ghosts?.releaseDots ?? ghostReleaseDots();
+  const releasePellets = config.ghosts?.releasePellets ?? ghostReleasePellets();
   const scheduleOverride = config.ghosts?.schedule;
   const scheduleFor = (value: number): readonly GhostPhase[] =>
     scheduleOverride ?? scatterChaseSchedule(value);
@@ -204,12 +204,11 @@ export function createSimulation(config: SimulationConfig): Simulation {
       eatTraversed();
       updateGhosts(ghosts, {
         maze,
-        pacmanTile: currentTile(),
-        pacmanDirection: direction,
+        pacman: { tile: currentTile(), direction },
         globalMode: currentGlobalMode(),
         speed: ghostSpeed,
         pelletsEaten,
-        releaseDots,
+        releasePellets,
       });
     },
 

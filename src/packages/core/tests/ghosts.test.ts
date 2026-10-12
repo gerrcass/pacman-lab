@@ -4,7 +4,7 @@ import {
   MAZE_COLUMNS,
   MAZE_ROWS,
   createSimulation,
-  ghostReleaseDots,
+  ghostReleasePellets,
   ghostTilesPerTick,
   parseMaze,
   scatterChaseSchedule,
@@ -61,7 +61,7 @@ describe("ghost house", () => {
     const sim = createSimulation({
       maze: CLASSIC_MAZE,
       seed: 1,
-      ghosts: { releaseDots: { pinky: 0, inky: 2, clyde: 4 } },
+      ghosts: { releasePellets: { pinky: 0, inky: 2, clyde: 4 } },
     });
 
     step(sim, 16); // one Pellet eaten
@@ -97,6 +97,14 @@ describe("per-Ghost targeting", () => {
   it("Pinky targets four tiles ahead of PacMan", () => {
     const sim = targetSim([start("pinky", 14, 14, "left", "chase")], cross(10, 10));
     sim.step({ desired: null });
+    expect(ghost(sim.snapshot(), "pinky").direction).toBe("left");
+  });
+
+  it("Pinky shifts the ahead-tile left when PacMan faces up (arcade quirk)", () => {
+    const sim = targetSim([start("pinky", 14, 14, "left", "chase")], cross(14, 20));
+    sim.step({ desired: "up" });
+    // Four ahead of (14,19) facing up is (10,15) with the quirk, so Pinky
+    // breaks left; without it the target (14,15) would send her up.
     expect(ghost(sim.snapshot(), "pinky").direction).toBe("left");
   });
 
@@ -153,6 +161,17 @@ describe("Scatter/Chase schedule", () => {
     expect(ghost(sim.snapshot(), "blinky").mode).toBe("scatter");
   });
 
+  it("uses shorter Scatters and a long third Chase on later Levels", () => {
+    const level2 = scatterChaseSchedule(2);
+    expect(level2[0]).toEqual({ mode: "scatter", ticks: 420 });
+    expect(level2[5]).toEqual({ mode: "chase", ticks: 61980 });
+    expect(level2[6]).toEqual({ mode: "scatter", ticks: 1 });
+
+    const level5 = scatterChaseSchedule(5);
+    expect(level5[0]).toEqual({ mode: "scatter", ticks: 300 });
+    expect(level5[5]).toEqual({ mode: "chase", ticks: 62220 });
+  });
+
   it("reverses every active Ghost on a mode change", () => {
     const sim = createSimulation({ maze: CLASSIC_MAZE, seed: 1 });
     step(sim, 420);
@@ -183,7 +202,7 @@ describe("difficulty tables", () => {
     expect(ghost(sim.snapshot(), "blinky").position.x).toBeCloseTo(14 - 40 * speed, 5);
   });
 
-  it("stores the arcade house release dot limits", () => {
-    expect(ghostReleaseDots()).toEqual({ pinky: 0, inky: 30, clyde: 60 });
+  it("stores the arcade house release Pellet limits", () => {
+    expect(ghostReleasePellets()).toEqual({ pinky: 0, inky: 30, clyde: 60 });
   });
 });

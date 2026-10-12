@@ -18,7 +18,14 @@ export type {
 } from "./lib/simulation";
 export type { PelletKind, PelletMarker } from "./lib/pellets";
 
-export { ghostReleaseDots, ghostTilesPerTick, scatterChaseSchedule } from "./lib/tuning";
-export type { GhostId, GhostMode, GhostPhase, GhostPhaseMode, GhostStart } from "./lib/tuning";
+export { ghostReleasePellets, ghostTilesPerTick, scatterChaseSchedule } from "./lib/tuning";
+export type {
+  GhostId,
+  GhostMode,
+  GhostPhase,
+  GhostPhaseMode,
+  GhostStart,
+  HouseGhostId,
+} from "./lib/tuning";
 
 export const CLASSIC_MAZE = parseMaze(CLASSIC_MAZE_ROWS);

@@ -4,6 +4,12 @@ import type { GridPosition } from "./maze";
 import { SCATTER_TARGETS } from "./tuning";
 import type { GhostId } from "./tuning";
 
+/** Where PacMan is and which way he faces, the reference every Chase rule needs. */
+export type PacManPose = {
+  readonly tile: GridPosition;
+  readonly direction: Direction;
+};
+
 /** Clyde breaks off to his corner within this many tiles (arcade uses 8). */
 const CLYDE_BREAK_OFF_DISTANCE = 8;
 
@@ -31,24 +37,23 @@ export function scatterTarget(id: GhostId): GridPosition {
 export function chaseTarget(
   id: GhostId,
   ghostTile: GridPosition,
-  pacmanTile: GridPosition,
-  pacmanDirection: Direction,
+  pacman: PacManPose,
   blinkyTile: GridPosition,
 ): GridPosition {
   switch (id) {
     case "blinky":
-      return { ...pacmanTile };
+      return { ...pacman.tile };
     case "pinky":
-      return ahead(pacmanTile, pacmanDirection, 4);
+      return ahead(pacman.tile, pacman.direction, 4);
     case "inky": {
-      const pivot = ahead(pacmanTile, pacmanDirection, 2);
+      const pivot = ahead(pacman.tile, pacman.direction, 2);
       return { x: pivot.x + (pivot.x - blinkyTile.x), y: pivot.y + (pivot.y - blinkyTile.y) };
     }
     case "clyde": {
-      const dx = ghostTile.x - pacmanTile.x;
-      const dy = ghostTile.y - pacmanTile.y;
+      const dx = ghostTile.x - pacman.tile.x;
+      const dy = ghostTile.y - pacman.tile.y;
       const far = dx * dx + dy * dy >= CLYDE_BREAK_OFF_DISTANCE * CLYDE_BREAK_OFF_DISTANCE;
-      return far ? { ...pacmanTile } : scatterTarget("clyde");
+      return far ? { ...pacman.tile } : scatterTarget("clyde");
     }
   }
 }
