@@ -117,8 +117,10 @@ export function createGame(canvas: HTMLCanvasElement): void {
     }
 
     // The d-pad is a control for the Maze, drawn over it, not another screen.
+    // Draw it at the resting viewport: pointer hit-testing in the input layer
+    // uses the resting viewport, so the pad's touch area must not shake.
     if (touch && showsActors(screen)) {
-      drawTouchControls(ctx, view, DPAD_LAYOUT);
+      drawTouchControls(ctx, viewport, DPAD_LAYOUT);
     }
 
     drawTransition(ctx, transition);
