@@ -19,6 +19,8 @@ import {
   updateGhosts,
 } from "./ghosts";
 import type { GhostState } from "./ghosts";
+import { createFruitBoard } from "./fruit";
+import type { FruitConfig } from "./fruit";
 import { createPelletBoard } from "./pellets";
 import type { PelletMarker } from "./pellets";
 import { createRng } from "./rng";
@@ -34,6 +36,7 @@ import {
   scatterChaseSchedule,
 } from "./tuning";
 import type { GhostId, GhostMode, GhostPhase, GhostStart, HouseGhostId } from "./tuning";
+import type { FruitKind } from "./tuning";
 
 /** One tick's worth of player intent: the direction the player is asking for. */
 export type Intent = {
@@ -65,6 +68,14 @@ export type GhostSnapshot = {
   readonly frightenedTicksLeft: number;
 };
 
+export type FruitSnapshot = {
+  readonly kind: FruitKind;
+  /** The left of the two tiles the Fruit occupies. */
+  readonly tile: GridPosition;
+  /** Ticks before the Fruit disappears. */
+  readonly ticksLeft: number;
+};
+
 export type Snapshot = {
   readonly tick: number;
   /** The game-flow state the simulation is in. */
@@ -81,6 +92,8 @@ export type Snapshot = {
   readonly pelletsRemaining: number;
   /** The Pellets still on the board, with their kind, for the render layer. */
   readonly pellets: readonly PelletMarker[];
+  /** The Fruit on the board, or null when none is showing. */
+  readonly fruit: FruitSnapshot | null;
   readonly pacman: PacmanSnapshot;
   /** The four Ghosts, in Blinky, Pinky, Inky, Clyde order. */
   readonly ghosts: readonly GhostSnapshot[];
@@ -113,6 +126,7 @@ export type SimulationConfig = {
   readonly seed: number;
   readonly difficulty?: Difficulty;
   readonly ghosts?: GhostConfig;
+  readonly fruit?: FruitConfig;
   /** Lives before the game ends; defaults to three. */
   readonly lives?: number;
 };
@@ -254,6 +268,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
   let deathTicksLeft = 0;
   let pelletsEaten = 0;
   const pellets = createPelletBoard(maze);
+  const fruit = createFruitBoard(config.fruit);
   const position = { x: maze.pacmanStart.x, y: maze.pacmanStart.y };
   let direction: Direction = "left";
   let next: Direction | null = null;
@@ -357,12 +372,15 @@ export function createSimulation(config: SimulationConfig): Simulation {
       }
 
       if (frightenedTicks > 0) frightenedTicks -= 1;
+      fruit.tick();
       advanceSchedule();
       if (intent.desired !== null) next = intent.desired;
       move();
       // A Level that clears this tick repositions everyone; the stale move path
       // must not be swept against the fresh Ghosts.
       if (eatTraversed()) return;
+      eatFruit();
+      fruit.maybeSpawn(level, pelletsEaten);
       updateGhosts(ghosts, {
         maze,
         pacman: { tile: currentTile(), direction },
@@ -388,6 +406,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
         deathTicksLeft,
         pelletsRemaining: pellets.remaining(),
         pellets: pellets.markers(),
+        fruit: fruitSnapshot(),
         pacman: {
           tile: currentTile(),
           position: { x: position.x, y: position.y },
@@ -420,6 +439,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
     deathTicksLeft = 0;
     pelletsEaten = 0;
     pellets.reset();
+    fruit.reset();
     rng = createRng(config.seed);
     placeActors(config.ghosts?.frightenedTicks ?? 0);
     resetSchedule();
@@ -455,6 +475,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
   /** When the death animation ends, respawn or, with no lives left, end the game. */
   function endDeath(): void {
     deathTicksLeft = 0;
+    fruit.clear();
     if (lives > 0) {
       state = "playing";
       placeActors(0);
@@ -476,6 +497,17 @@ export function createSimulation(config: SimulationConfig): Simulation {
       if (consumed.kind === "powerPellet") beginFrightened();
     }
     return false;
+  }
+
+  /** Scores the Fruit PacMan has reached this tick, if any. */
+  function eatFruit(): void {
+    score += fruit.consume(traversed);
+  }
+
+  function fruitSnapshot(): FruitSnapshot | null {
+    const active = fruit.active();
+    if (active === null) return null;
+    return { kind: active.kind, tile: active.tile, ticksLeft: active.ticksLeft };
   }
 
   /** A Power Pellet reverses every Ghost on the grid and starts the timer. */
@@ -531,6 +563,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
     level += 1;
     pellets.reset();
     pelletsEaten = 0;
+    fruit.reset();
     placeActors(0);
     resetSchedule();
   }

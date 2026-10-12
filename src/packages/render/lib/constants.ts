@@ -34,3 +34,23 @@ export const GHOST_COLORS = {
   inky: "#00ffff",
   clyde: "#ffb852",
 } as const;
+
+/** The Fruit body colours, by Fruit. */
+export const FRUIT_COLORS = {
+  cherry: "#ff0000",
+  strawberry: "#ff0000",
+  orange: "#ffb852",
+  apple: "#ff0000",
+  melon: "#00ff00",
+  galaxian: "#00ffff",
+  bell: "#ffff00",
+  key: "#00ffff",
+} as const;
+
+/** Shared accents for the Fruit sprites: stems, leaves, and trim. */
+export const FRUIT_ACCENTS = {
+  stem: "#00aa00",
+  leaf: "#00dd00",
+  stemDark: "#8b4513",
+  stripe: "#00aa00",
+} as const;

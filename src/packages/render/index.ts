@@ -1,4 +1,5 @@
 export { drawHud } from "./lib/drawHud";
+export { drawFruit } from "./lib/drawFruit";
 export { drawGhosts } from "./lib/drawGhosts";
 export { drawMaze } from "./lib/drawMaze";
 export { drawPacman } from "./lib/drawPacman";
