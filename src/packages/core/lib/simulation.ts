@@ -360,7 +360,9 @@ export function createSimulation(config: SimulationConfig): Simulation {
       advanceSchedule();
       if (intent.desired !== null) next = intent.desired;
       move();
-      eatTraversed();
+      // A Level that clears this tick repositions everyone; the stale move path
+      // must not be swept against the fresh Ghosts.
+      if (eatTraversed()) return;
       updateGhosts(ghosts, {
         maze,
         pacman: { tile: currentTile(), direction },
@@ -461,7 +463,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
     state = "gameOver";
   }
 
-  function eatTraversed(): void {
+  function eatTraversed(): boolean {
     for (const tile of traversed) {
       const consumed = pellets.consume(tile);
       if (consumed === null) continue;
@@ -469,10 +471,11 @@ export function createSimulation(config: SimulationConfig): Simulation {
       pelletsEaten += 1;
       if (pellets.remaining() === 0) {
         advanceLevel();
-        return;
+        return true;
       }
       if (consumed.kind === "powerPellet") beginFrightened();
     }
+    return false;
   }
 
   /** A Power Pellet reverses every Ghost on the grid and starts the timer. */
@@ -483,23 +486,18 @@ export function createSimulation(config: SimulationConfig): Simulation {
     markGhostsForReversal(ghosts, true);
   }
 
-  /** A Ghost out on the grid in Scatter or Chase catches PacMan; Frightened,
-   * eaten, leaving, and housed Ghosts do not. */
-  function isLethal(ghost: GhostState): boolean {
-    if (ghost.leaving) return false;
-    return ghost.mode === "scatter" || ghost.mode === "chase";
-  }
-
   /**
    * Resolves PacMan's overlap with the Ghosts this tick. A lethal Ghost ends
    * the run: the death sequence starts. Otherwise PacMan eats any Frightened
    * Ghost he overlaps, doubling the value each time. Both checks sweep the
    * movers' paths across the tick, so a fast PacMan or a Ghost that turns
-   * mid-tick still collides.
+   * mid-tick still collides. Each Ghost carries the contact its motion earned
+   * at the start of the tick, so eyes that reach home or a Ghost that steps out
+   * of the house mid-tick cannot hurt PacMan with that motion.
    */
   function resolveCollisions(): void {
     for (const ghost of ghosts) {
-      if (!isLethal(ghost)) continue;
+      if (ghost.contact !== "lethal") continue;
       if (
         pathsCollide(pacmanPath, speed, ghost.path, ghostSpeed, maze.width, GHOST_EAT_DISTANCE_SQ)
       ) {
@@ -509,7 +507,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
     }
 
     for (const ghost of ghosts) {
-      if (!isFrightened(ghost, frightenedTicks)) continue;
+      if (ghost.contact !== "frightened") continue;
       if (
         !pathsCollide(
           pacmanPath,

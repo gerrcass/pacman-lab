@@ -41,6 +41,9 @@ export function drawPacman(
   snapshot: Snapshot,
   viewport: Viewport,
 ): void {
+  // The death animation ended with PacMan gone; leave him gone on the game over screen.
+  if (snapshot.state === "gameOver") return;
+
   const pacman = snapshot.pacman;
   ctx.save();
   ctx.setTransform(viewport.scale, 0, 0, viewport.scale, viewport.offsetX, viewport.offsetY);

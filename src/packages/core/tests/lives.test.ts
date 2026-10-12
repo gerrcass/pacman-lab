@@ -4,6 +4,7 @@ import type { Direction, GhostId, GhostPhase, GhostStart, Maze, Snapshot } from 
 
 const WALL_ROW = "#".repeat(MAZE_COLUMNS);
 const ALWAYS_CHASE: readonly GhostPhase[] = [{ mode: "chase", ticks: Infinity }];
+const ALWAYS_SCATTER: readonly GhostPhase[] = [{ mode: "scatter", ticks: Infinity }];
 
 type Sim = ReturnType<typeof createSimulation>;
 
@@ -57,6 +58,20 @@ function huntedSim(lives?: number): Sim {
 function stepUntil(sim: Sim, predicate: (snapshot: Snapshot) => boolean, max = 1000): number {
   for (let i = 0; i < max; i += 1) {
     sim.step({ desired: null });
+    if (predicate(sim.snapshot())) return i;
+  }
+  return -1;
+}
+
+/** Like `stepUntil`, but holding a direction each tick. */
+function driveUntil(
+  sim: Sim,
+  desired: Direction,
+  predicate: (snapshot: Snapshot) => boolean,
+  max = 400,
+): number {
+  for (let i = 0; i < max; i += 1) {
+    sim.step({ desired });
     if (predicate(sim.snapshot())) return i;
   }
   return -1;
@@ -126,6 +141,54 @@ describe("lives and the death sequence", () => {
     sim.step({ desired: null });
     const snap = sim.snapshot();
     expect(snap.score).toBe(200);
+    expect(snap.state).toBe("playing");
+    expect(snap.lives).toBe(3);
+  });
+
+  it("does not spend a life on the tick a Level clears", () => {
+    // The only Pellet sits at Blinky's tile. PacMan eats it, the Level resets
+    // the actors, and the stale move path must not be re-checked against the
+    // fresh Ghosts.
+    const rows = blank();
+    openRow(rows, 14, 6, 22);
+    rows[14]![10] = "P";
+    rows[14]![14] = ".";
+    const sim = createSimulation({
+      maze: mazeOf(rows),
+      seed: 1,
+      ghosts: { starts: [start("blinky", 14, 14, "right", "scatter")], schedule: ALWAYS_SCATTER },
+    });
+
+    const cleared = driveUntil(sim, "right", (snapshot) => snapshot.level === 2);
+    expect(cleared).toBeGreaterThanOrEqual(0);
+    const snap = sim.snapshot();
+    expect(snap.state).toBe("playing");
+    expect(snap.lives).toBe(3);
+  });
+
+  it("does not die to a Ghost's eyes reaching home", () => {
+    // Blinky's home is PacMan's tile. PacMan eats him, the eyes are already
+    // home and rejoin as a hunter on the same tick; that tick was travelled as
+    // eyes, so it must not cost a life.
+    const rows = blank();
+    openRow(rows, 14, 6, 22);
+    rows[14]![12] = "#"; // pins PacMan in place
+    rows[14]![13] = "P";
+    const sim = createSimulation({
+      maze: mazeOf(rows),
+      seed: 1,
+      ghosts: {
+        starts: [start("blinky", 13, 14, "left", "chase")],
+        schedule: ALWAYS_CHASE,
+        frightenedTicks: 600,
+      },
+    });
+
+    const eaten = stepUntil(sim, (snapshot) => ghost(snapshot, "blinky").mode === "eaten", 100);
+    expect(eaten).toBeGreaterThanOrEqual(0);
+    const rejoined = stepUntil(sim, (snapshot) => ghost(snapshot, "blinky").mode !== "eaten", 400);
+    expect(rejoined).toBeGreaterThanOrEqual(0);
+    const snap = sim.snapshot();
     expect(snap.state).toBe("playing");
     expect(snap.lives).toBe(3);
   });
