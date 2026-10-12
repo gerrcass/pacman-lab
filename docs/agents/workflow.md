@@ -203,7 +203,10 @@ cd .worktrees/<task> && npm install
 npm run typecheck && npm run lint && npm test && npm run deps && npm run build
 
 # Ship
-git add -A src && git commit
+git status --short                 # see what changed
+git add <paths>                    # stage the ticket's files, e.g. src/ docs/
+git diff --cached                  # review the staged diff before committing
+git commit
 git push -u origin agent/<task>
 gh pr create --title "..." --body "..."   # include before/after evidence
 gh pr checks <n> --watch                   # CI + Greptile
