@@ -3,6 +3,7 @@ import {
   VIRTUAL_HEIGHT,
   VIRTUAL_WIDTH,
   drawBoot,
+  drawFruit,
   drawGameOver,
   drawGhosts,
   drawHud,
@@ -58,6 +59,7 @@ export function createGame(canvas: HTMLCanvasElement): void {
     drawMaze(ctx, CLASSIC_MAZE, viewport);
     if (showsActors(screen)) {
       drawPellets(ctx, board.pellets, viewport);
+      drawFruit(ctx, board.fruit, viewport);
       drawGhosts(ctx, board.ghosts, viewport);
       drawPacman(ctx, board, viewport);
     }

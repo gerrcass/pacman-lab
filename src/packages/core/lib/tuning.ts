@@ -139,3 +139,54 @@ export function ghostTilesPerTick(level: number, pacmanTilesPerTick: number): nu
   const tier = level === 1 ? 0.75 : level <= 4 ? 0.85 : 0.95;
   return arcadeFullTilesPerTick(pacmanTilesPerTick) * tier;
 }
+
+/** The Fruit that can appear in a Maze. */
+export type FruitKind =
+  "cherry" | "strawberry" | "orange" | "apple" | "melon" | "galaxian" | "bell" | "key";
+
+export type FruitSpec = {
+  readonly kind: FruitKind;
+  readonly points: number;
+};
+
+type FruitTier = FruitSpec & { readonly throughLevel: number };
+
+/**
+ * The arcade Fruit table: each Fruit covers a range of Levels. Every two Levels
+ * share a Fruit after the first, so the table runs cherry, strawberry, then two
+ * Levels each of orange through bell, and the key from Level 13 on.
+ */
+const FRUIT_TIERS: readonly FruitTier[] = [
+  { kind: "cherry", points: 100, throughLevel: 1 },
+  { kind: "strawberry", points: 300, throughLevel: 2 },
+  { kind: "orange", points: 500, throughLevel: 4 },
+  { kind: "apple", points: 700, throughLevel: 6 },
+  { kind: "melon", points: 1000, throughLevel: 8 },
+  { kind: "galaxian", points: 2000, throughLevel: 10 },
+  { kind: "bell", points: 3000, throughLevel: 12 },
+  { kind: "key", points: 5000, throughLevel: Infinity },
+];
+
+/** The Fruit and its value for a Level. */
+export function fruitForLevel(level: number): FruitSpec {
+  const current = Math.max(1, level);
+  const tier =
+    FRUIT_TIERS.find((entry) => current <= entry.throughLevel) ??
+    FRUIT_TIERS[FRUIT_TIERS.length - 1]!;
+  return { kind: tier.kind, points: tier.points };
+}
+
+/**
+ * Pellets eaten within a Level at which each Fruit appears, in order. The count
+ * includes Power Pellets, the same counter the Ghost release schedule uses.
+ */
+export const FRUIT_SPAWN_PELLETS: readonly number[] = [70, 170];
+
+/** How long a Fruit stays on the board before it disappears, in fixed ticks (9s). */
+export const FRUIT_TICKS = 9 * TICKS_PER_SECOND;
+
+/**
+ * Where the Fruit appears: the left of the two center tiles just below the
+ * Ghost house, so the Fruit reads as centered over the seam between them.
+ */
+export const FRUIT_SPAWN_TILE: GridPosition = { x: 13, y: 17 };

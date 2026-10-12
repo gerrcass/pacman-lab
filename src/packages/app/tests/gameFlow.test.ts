@@ -16,6 +16,7 @@ function snapshot(overrides: Partial<Snapshot> = {}): Snapshot {
     deathTicksLeft: 0,
     pelletsRemaining: 10,
     pellets: [],
+    fruit: null,
     pacman: {
       tile: { x: 0, y: 0 },
       position: { x: 0, y: 0 },
