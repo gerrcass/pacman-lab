@@ -57,6 +57,16 @@ simulation, then screenshot that. Put it under `.artifacts/<task>/` and delete i
 before committing. Step the flow with a fake clock or a scripted `Simulation`,
 per the README's deep-module rules.
 
+## Stopping at a terminal screen
+
+A frame sampler has to know when the run ends. A fixed duration is brittle, and
+"the frame stopped changing" misfires: the board is frozen for 1.5s on every
+READY, so identical consecutive frames also mean a countdown, not the end. Probe
+the canvas for the screen's own signature instead. The GAME OVER banner is the
+only large run of pure red on the board, so read the canvas with `getImageData`,
+count `(255, 0, 0)` pixels, and stop past a threshold (about 5000; live play sits
+near 90 for Blinky). The same trick finds any screen with a distinctive colour.
+
 ## Before shots
 
 The main checkout has no `node_modules`, so there is no "before" server there.
