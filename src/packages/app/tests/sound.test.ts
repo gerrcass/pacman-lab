@@ -44,6 +44,10 @@ function powerPellets(count: number): PelletMarker[] {
   return markers;
 }
 
+function pellet(): PelletMarker {
+  return { tile: { x: 0, y: 0 }, kind: "pellet" };
+}
+
 function ghost(id: GhostSnapshot["id"], mode: GhostSnapshot["mode"]): GhostSnapshot {
   return {
     id,
@@ -139,6 +143,72 @@ describe("play events", () => {
       frame("playing", idleBoard({ ghosts: [ghost("blinky", "chase"), ghost("pinky", "eaten")] })),
     );
     expect(sounds.ghost).toBe(1);
+  });
+
+  it("plays both the Pellet and the Ghost cue when they land on the same tick", () => {
+    const { sink, sounds } = listener();
+    const driver = createSoundDriver(sink);
+    driver.step(
+      frame("playing", idleBoard({ pelletsRemaining: 10, ghosts: [ghost("blinky", "chase")] })),
+    );
+    driver.step(
+      frame("playing", idleBoard({ pelletsRemaining: 9, ghosts: [ghost("blinky", "eaten")] })),
+    );
+    expect(sounds.waka).toBe(1);
+    expect(sounds.ghost).toBe(1);
+  });
+
+  it("plays both the Power Pellet and the Ghost cue on the same tick", () => {
+    const { sink, sounds } = listener();
+    const driver = createSoundDriver(sink);
+    driver.step(
+      frame(
+        "playing",
+        idleBoard({
+          pelletsRemaining: 10,
+          pellets: powerPellets(2),
+          ghosts: [ghost("blinky", "chase")],
+        }),
+      ),
+    );
+    driver.step(
+      frame(
+        "playing",
+        idleBoard({
+          pelletsRemaining: 9,
+          pellets: powerPellets(1),
+          ghosts: [ghost("blinky", "eaten")],
+        }),
+      ),
+    );
+    expect(sounds.power).toBe(1);
+    expect(sounds.ghost).toBe(1);
+  });
+
+  it("plays a cue for the last Pellet when a Level clears", () => {
+    const { sink, sounds } = listener();
+    const driver = createSoundDriver(sink);
+    driver.step(
+      frame("playing", idleBoard({ level: 1, pelletsRemaining: 1, pellets: [pellet()] })),
+    );
+    driver.step(
+      frame("levelClear", idleBoard({ level: 2, pelletsRemaining: 244, pellets: powerPellets(4) })),
+    );
+    expect(sounds.waka).toBe(1);
+    expect(sounds.power).toBe(0);
+  });
+
+  it("plays the Power Pellet cue when the last Pellet is a Power Pellet", () => {
+    const { sink, sounds } = listener();
+    const driver = createSoundDriver(sink);
+    driver.step(
+      frame("playing", idleBoard({ level: 1, pelletsRemaining: 1, pellets: powerPellets(1) })),
+    );
+    driver.step(
+      frame("levelClear", idleBoard({ level: 2, pelletsRemaining: 244, pellets: powerPellets(4) })),
+    );
+    expect(sounds.power).toBe(1);
+    expect(sounds.waka).toBe(0);
   });
 
   it("plays the death cue once on entering the death screen", () => {
