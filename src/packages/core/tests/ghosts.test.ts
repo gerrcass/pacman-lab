@@ -181,6 +181,27 @@ describe("Scatter/Chase schedule", () => {
     expect(after).toBe(before === "left" ? "right" : before === "right" ? "left" : after);
     expect(after).not.toBe(before);
   });
+
+  it("keeps the forced reversal when a mode change lands on a tile center", () => {
+    // Blinky reaches the (14,14) junction exactly as Scatter gives way to
+    // Chase: he must reverse down, not turn left toward PacMan at (5,10).
+    const sim = createSimulation({
+      maze: cross(5, 10),
+      seed: 1,
+      difficulty: { pacmanTilesPerTick: 16 / 15 },
+      ghosts: {
+        starts: [start("blinky", 14, 15, "up", "scatter")],
+        schedule: [
+          { mode: "scatter", ticks: 1 },
+          { mode: "chase", ticks: Infinity },
+        ],
+      },
+    });
+    sim.step({ desired: null });
+    expect(ghost(sim.snapshot(), "blinky").position.y).toBeCloseTo(14, 6);
+    sim.step({ desired: null });
+    expect(ghost(sim.snapshot(), "blinky").direction).toBe("down");
+  });
 });
 
 describe("difficulty tables", () => {

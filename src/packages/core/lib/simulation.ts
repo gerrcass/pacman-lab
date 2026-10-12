@@ -10,7 +10,7 @@ import {
   wrapX,
 } from "./gridMovement";
 import type { GridPosition, Maze } from "./maze";
-import { createGhostStates, reverseGhostStates, updateGhosts } from "./ghosts";
+import { createGhostStates, markGhostsForReversal, updateGhosts } from "./ghosts";
 import type { GhostState } from "./ghosts";
 import { createPelletBoard } from "./pellets";
 import type { PelletMarker } from "./pellets";
@@ -190,7 +190,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
     while (phaseIndex < schedule.length - 1 && phaseTicks > phase.ticks) {
       phaseTicks -= phase.ticks;
       phaseIndex += 1;
-      reverseGhostStates(ghosts);
+      markGhostsForReversal(ghosts);
       phase = schedule[phaseIndex]!;
     }
   };

@@ -26,6 +26,8 @@ export type GhostState = {
   route: GridPosition[];
   exitTile: GridPosition | null;
   bobDirection: Direction;
+  /** Set on a Scatter/Chase change; the Ghost reverses on its next move. */
+  pendingReverse: boolean;
 };
 
 /** Arcade tie-break order when several directions tie on distance. */
@@ -43,15 +45,16 @@ export function createGhostStates(starts: readonly GhostStart[]): GhostState[] {
     route: [],
     exitTile: null,
     bobDirection: "up",
+    pendingReverse: false,
   }));
 }
 
-/** Reverses every Ghost that is on the grid, used on a Scatter/Chase change. */
-export function reverseGhostStates(states: readonly GhostState[]): void {
+/** Flags every Ghost on the grid to reverse on its next move. */
+export function markGhostsForReversal(states: readonly GhostState[]): void {
   for (const state of states) {
     if (state.leaving || state.mode === "house") continue;
     if (state.mode === "scatter" || state.mode === "chase") {
-      state.direction = opposite(state.direction);
+      state.pendingReverse = true;
     }
   }
 }
@@ -97,7 +100,15 @@ export function updateGhosts(states: readonly GhostState[], context: GhostContex
         state.mode === "scatter"
           ? scatterTarget(state.id)
           : chaseTarget(state.id, tile, context.pacman, blinkyTile);
-      moveGhost(context.maze, state, context.speed, target);
+
+      // A forced reversal on a mode change wins over the target choice at the
+      // tile center the Ghost is standing on.
+      const committed = state.pendingReverse;
+      if (committed) {
+        state.direction = opposite(state.direction);
+        state.pendingReverse = false;
+      }
+      moveGhost(context.maze, state, context.speed, target, committed);
     }
   }
 }
@@ -192,15 +203,26 @@ function chooseDirection(
   return best;
 }
 
-function moveGhost(maze: Maze, state: GhostState, speed: number, target: GridPosition): void {
+function moveGhost(
+  maze: Maze,
+  state: GhostState,
+  speed: number,
+  target: GridPosition,
+  commitStart = false,
+): void {
   let budget = speed;
+  let atFirstCenter = true;
   for (;;) {
     if (isCentered(state.position.x) && isCentered(state.position.y)) {
+      if (!(atFirstCenter && commitStart)) {
+        const tile = centeredTile(state.position, maze.width);
+        state.direction = chooseDirection(maze, state, tile, target);
+      }
       const tile = centeredTile(state.position, maze.width);
-      state.direction = chooseDirection(maze, state, tile, target);
       const vector = DIRECTION_VECTORS[state.direction];
       if (!isWalkable(maze, tile.x + vector.x, tile.y + vector.y)) break;
     }
+    atFirstCenter = false;
 
     const step = Math.min(budget, distanceToNextCenter(state.position, state.direction));
     if (step <= EPSILON) break;
