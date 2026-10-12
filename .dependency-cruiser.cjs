@@ -85,6 +85,14 @@ module.exports = {
       from: { path: `^${R}/render/` },
       to: { path: `^${R}/app/` },
     },
+    {
+      name: "audio-is-a-leaf",
+      comment:
+        "The audio service is a browser-only leaf: it synthesizes sound and knows nothing of the simulation, the render layer, or the app.",
+      severity: "error",
+      from: { path: `^${R}/audio/` },
+      to: { path: `^${R}/(core|render|app)/` },
+    },
   ],
   options: {
     doNotFollow: { path: "node_modules" },
