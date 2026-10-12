@@ -8,6 +8,18 @@ a skill, a tooling gap, a review finding that changed a rule, or a mistake worth
 not repeating. One short entry per event, with the issue or PR that acted on it.
 Run `/retro` at the end of a hard session and land its findings here.
 
+## 2026-10-12 — Swept collisions must use the state an actor started the tick in
+
+Greptile's two P1s on PR #24 were the same mistake: `resolveCollisions`
+classified each Ghost by the mode it held *after* `updateGhosts` moved it, then
+swept its whole tick-long path. An eaten Ghost that reached home mid-tick had
+its mode flipped to Chase, so its eyes-speed path got re-checked at Ghost speed,
+and a Level-clear tick swept PacMan's stale pre-reset path against freshly
+placed Ghosts. Rule for this repo: decide a swept collision from the mode and
+positions an actor had at the start of the tick, sweep at the speed it actually
+travelled, and skip collisions on any tick that repositions everyone (Level
+clear or respawn). PR #24.
+
 ## 2026-10-12 — No window maps to `:0`, and Playwright video writes nothing; sample frames
 
 Neither a headed Chromium (`--ozone-platform=x11`) nor the `agent-browser` /
