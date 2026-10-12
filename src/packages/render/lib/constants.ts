@@ -17,6 +17,7 @@ export const COLORS = {
   background: "#000000",
   wall: "#2121de",
   pellet: "#ffb8ae",
+  powerParticle: "#ffffff",
   door: "#ffb8ff",
   pacman: "#ffff00",
   hud: "#ffffff",
