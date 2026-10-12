@@ -63,9 +63,12 @@ A frame sampler has to know when the run ends. A fixed duration is brittle, and
 "the frame stopped changing" misfires: the board is frozen for 1.5s on every
 READY, so identical consecutive frames also mean a countdown, not the end. Probe
 the canvas for the screen's own signature instead. The GAME OVER banner is the
-only large run of pure red on the board, so read the canvas with `getImageData`,
-count `(255, 0, 0)` pixels, and stop past a threshold (about 5000; live play sits
-near 90 for Blinky). The same trick finds any screen with a distinctive colour.
+only large run of pure red on the board, so read the canvas with `getImageData`
+and count `(255, 0, 0)` pixels. The count scales with the viewport scale squared:
+about 13,000 at the 720x900 capture (scale 3.125) against a live-play baseline of
+roughly 90 for Blinky, and about 1,300 at scale 1. Pick the threshold from the
+capture size, or capture at scale 2 or higher, rather than a fixed number. The
+same trick finds any screen with a distinctive colour.
 
 ## Before shots
 
