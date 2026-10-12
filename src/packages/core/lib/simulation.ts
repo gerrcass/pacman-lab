@@ -10,7 +10,13 @@ import {
   wrapX,
 } from "./gridMovement";
 import type { GridPosition, Maze } from "./maze";
-import { createGhostStates, markGhostsForReversal, updateGhosts } from "./ghosts";
+import {
+  createGhostStates,
+  isFrightened,
+  markGhostEaten,
+  markGhostsForReversal,
+  updateGhosts,
+} from "./ghosts";
 import type { GhostState } from "./ghosts";
 import { createPelletBoard } from "./pellets";
 import type { PelletMarker } from "./pellets";
@@ -89,9 +95,9 @@ export type GhostConfig = {
 export type SimulationConfig = {
   readonly maze: Maze;
   /**
-   * Seeds the deterministic RNG. Ghost movement draws no randomness yet, but
-   * the seed is part of the contract: a config, seed, and intent sequence must
-   * reproduce the same snapshot sequence once Frightened turns arrive.
+   * Seeds the deterministic RNG. The seed is part of the contract: a config,
+   * seed, and intent sequence must reproduce the same snapshot sequence, and
+   * Frightened movement draws from it to break equally good flee directions.
    */
   readonly seed: number;
   readonly difficulty?: Difficulty;
@@ -220,6 +226,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
   return {
     step(intent: Intent): void {
       tick += 1;
+      if (frightenedTicks > 0) frightenedTicks -= 1;
       advanceSchedule();
       if (intent.desired !== null) next = intent.desired;
       move();
@@ -237,7 +244,6 @@ export function createSimulation(config: SimulationConfig): Simulation {
         releasePellets,
       });
       resolveGhostEats();
-      if (frightenedTicks > 0) frightenedTicks -= 1;
     },
 
     snapshot(): Snapshot {
@@ -253,18 +259,14 @@ export function createSimulation(config: SimulationConfig): Simulation {
           direction,
           next,
         },
-        ghosts: ghosts.map((state) => {
-          const frightened =
-            frightenedTicks > 0 && !state.frightenedImmune && state.mode !== "eaten";
-          return {
-            id: state.id,
-            mode: frightened ? "frightened" : state.mode,
-            tile: centeredTile(state.position, maze.width),
-            position: { x: state.position.x, y: state.position.y },
-            direction: state.direction,
-            frightenedTicksLeft: frightened ? frightenedTicks : 0,
-          };
-        }),
+        ghosts: ghosts.map((state) => ({
+          id: state.id,
+          mode: state.mode,
+          tile: centeredTile(state.position, maze.width),
+          position: { x: state.position.x, y: state.position.y },
+          direction: state.direction,
+          frightenedTicksLeft: isFrightened(state, frightenedTicks) ? frightenedTicks : 0,
+        })),
       };
     },
   };
@@ -287,7 +289,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
   function beginFrightened(): void {
     frightenedTicks = frightenedTicksForLevel(level);
     ghostChain = 0;
-    for (const state of ghosts) state.frightenedImmune = false;
+    for (const state of ghosts) state.eatenRecovering = false;
     markGhostsForReversal(ghosts, true);
   }
 
@@ -301,13 +303,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
 
       score += frightenedGhostPoints(ghostChain);
       ghostChain += 1;
-      state.mode = "eaten";
-      state.returning = false;
-      state.frightenedImmune = true;
-      state.leaving = false;
-      state.route = [];
-      state.exitTile = null;
-      state.pendingReverse = false;
+      markGhostEaten(state);
     }
   }
 

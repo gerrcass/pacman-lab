@@ -3,7 +3,7 @@ import type { GridPosition } from "./maze";
 
 export type GhostId = "blinky" | "pinky" | "inky" | "clyde";
 
-/** The mode a Ghost is in. `frightened` and `eaten` are wired in later tickets. */
+/** The mode a Ghost is in. */
 export type GhostMode = "house" | "scatter" | "chase" | "frightened" | "eaten";
 
 /** The two modes the global Scatter/Chase timer alternates between. */
@@ -30,6 +30,15 @@ const TICKS_PER_SECOND = 60;
 
 function seconds(value: number): number {
   return Math.round(value * TICKS_PER_SECOND);
+}
+
+/**
+ * The arcade's full speed in tiles per tick. PacMan's base is the arcade's
+ * level-1 80% of full speed, so full speed is the base over 0.8; Ghost speed
+ * tiers are percentages of this.
+ */
+function arcadeFullTilesPerTick(pacmanTilesPerTick: number): number {
+  return pacmanTilesPerTick / 0.8;
 }
 
 /**
@@ -132,12 +141,12 @@ export function frightenedGhostPoints(chain: number): number {
 
 /** Frightened Ghosts crawl at half the arcade's full speed. */
 export function frightenedTilesPerTick(pacmanTilesPerTick: number): number {
-  return (pacmanTilesPerTick / 0.8) * 0.5;
+  return arcadeFullTilesPerTick(pacmanTilesPerTick) * 0.5;
 }
 
 /** A Ghost's eyes race home at the arcade's full speed. */
 export function eyesTilesPerTick(pacmanTilesPerTick: number): number {
-  return pacmanTilesPerTick / 0.8;
+  return arcadeFullTilesPerTick(pacmanTilesPerTick);
 }
 
 /**
@@ -164,9 +173,6 @@ export function scatterChaseSchedule(level: number): readonly GhostPhase[] {
 
 /** The arcade ghost speed in tiles per tick, from the per-Level speed tiers. */
 export function ghostTilesPerTick(level: number, pacmanTilesPerTick: number): number {
-  // PacMan's base speed is the arcade's level-1 80% of full speed, so full speed
-  // is the base over 0.8; the Ghost tiers are percentages of that full speed.
-  const arcadeFullSpeed = pacmanTilesPerTick / 0.8;
   const tier = level === 1 ? 0.75 : level <= 4 ? 0.85 : 0.95;
-  return arcadeFullSpeed * tier;
+  return arcadeFullTilesPerTick(pacmanTilesPerTick) * tier;
 }

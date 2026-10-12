@@ -76,7 +76,7 @@ describe("frightened: the Power Pellet flip", () => {
     const blinky = ghost(sim.snapshot(), "blinky");
     expect(blinky.mode).toBe("frightened");
     expect(blinky.direction).toBe("left");
-    expect(blinky.frightenedTicksLeft).toBe(frightenedTicksForLevel(1) - 1);
+    expect(blinky.frightenedTicksLeft).toBe(frightenedTicksForLevel(1));
   });
 
   it("does not reverse a Frightened Ghost on a Scatter/Chase change", () => {
@@ -230,6 +230,37 @@ describe("frightened: eating Ghosts", () => {
     const blinky = ghost(rejoined!, "blinky");
     expect(blinky.tile).toEqual({ x: 13, y: 11 });
     expect(blinky.frightenedTicksLeft).toBe(0);
+  });
+
+  it("returns a house Ghost to the house and releases it again", () => {
+    const rows = blank();
+    openColumn(rows, 13, 8, 20);
+    rows[19]![13] = "o";
+    rows[20]![13] = "P";
+    rows[1]![1] = ".";
+    const sim = createSimulation({
+      maze: mazeOf(rows),
+      seed: 1,
+      ghosts: { starts: [start("pinky", 13, 14, "up", "chase")], schedule: ALWAYS_CHASE },
+    });
+
+    let eaten = false;
+    let rejoined = false;
+    let released = false;
+    for (let i = 0; i < 500; i += 1) {
+      sim.step({ desired: eaten ? null : "up" });
+      const pinky = ghost(sim.snapshot(), "pinky");
+      if (pinky.mode === "eaten") eaten = true;
+      else if (eaten) rejoined = true;
+      if (rejoined && pinky.tile.y === 11) {
+        released = true;
+        break;
+      }
+    }
+
+    expect(eaten).toBe(true);
+    expect(rejoined).toBe(true);
+    expect(released).toBe(true);
   });
 });
 

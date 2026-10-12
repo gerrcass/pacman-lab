@@ -27,7 +27,7 @@ const PUPIL_SHIFT: Readonly<Record<Direction, { x: number; y: number }>> = {
 /** The body colour to paint, or null for an eaten Ghost reduced to eyes. */
 function bodyColor(ghost: GhostSnapshot): string | null {
   if (ghost.mode === "eaten") return null;
-  if (ghost.mode !== "frightened") return GHOST_COLORS[ghost.id];
+  if (ghost.frightenedTicksLeft === 0) return GHOST_COLORS[ghost.id];
   const flashing = ghost.frightenedTicksLeft <= FRIGHTENED_FLASH_TICKS;
   const flashOn =
     flashing && Math.floor(ghost.frightenedTicksLeft / FRIGHTENED_FLASH_INTERVAL) % 2 === 1;
