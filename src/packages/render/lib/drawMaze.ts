@@ -1,14 +1,6 @@
 import { tileAt } from "../../core";
-import type { Maze, TileType } from "../../core";
-import {
-  COLORS,
-  MAZE_OFFSET_X,
-  MAZE_OFFSET_Y,
-  PELLET_RADIUS,
-  POWER_PELLET_RADIUS,
-  TILE_SIZE,
-  WALL_THICKNESS,
-} from "./constants";
+import type { Maze } from "../../core";
+import { COLORS, MAZE_OFFSET_X, MAZE_OFFSET_Y, TILE_SIZE, WALL_THICKNESS } from "./constants";
 import type { Viewport } from "./viewport";
 
 function isWall(maze: Maze, x: number, y: number): boolean {
@@ -49,17 +41,6 @@ function drawWall(ctx: CanvasRenderingContext2D, maze: Maze, x: number, y: numbe
   corner(1, 1);
 }
 
-function drawPellet(ctx: CanvasRenderingContext2D, type: TileType, x: number, y: number): void {
-  const cx = MAZE_OFFSET_X + x * TILE_SIZE + TILE_SIZE / 2;
-  const cy = MAZE_OFFSET_Y + y * TILE_SIZE + TILE_SIZE / 2;
-  const radius = type === "powerPellet" ? POWER_PELLET_RADIUS : PELLET_RADIUS;
-
-  ctx.fillStyle = COLORS.pellet;
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.fill();
-}
-
 function drawDoor(ctx: CanvasRenderingContext2D, x: number, y: number): void {
   const px = MAZE_OFFSET_X + x * TILE_SIZE;
   const py = MAZE_OFFSET_Y + y * TILE_SIZE;
@@ -81,8 +62,6 @@ export function drawMaze(ctx: CanvasRenderingContext2D, maze: Maze, viewport: Vi
       const type = tileAt(maze, x, y);
       if (type === "wall") {
         drawWall(ctx, maze, x, y);
-      } else if (type === "pellet" || type === "powerPellet") {
-        drawPellet(ctx, type, x, y);
       } else if (type === "door") {
         drawDoor(ctx, x, y);
       }

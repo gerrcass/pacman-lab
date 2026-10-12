@@ -15,4 +15,5 @@ export const COLORS = {
   pellet: "#ffb8ae",
   door: "#ffb8ff",
   pacman: "#ffff00",
+  hud: "#ffffff",
 } as const;
