@@ -31,8 +31,6 @@ export type FlowSnapshot = {
   readonly lives: number;
   readonly level: number;
   readonly highScore: number;
-  /** True while this run's score is ahead of the score it started against. */
-  readonly isNewHighScore: boolean;
   /** The black fade between screens, 1 (fully black) falling to 0. */
   readonly transition: number;
 };
@@ -86,7 +84,6 @@ export function createGameFlow(config: GameFlowConfig): GameFlow {
   let levelClearTicksLeft = 0;
   let transition = 1;
   let highScore = sanitize(store.read());
-  let runStartHighScore = highScore;
   let board = sim.snapshot();
   let lastLevel = board.level;
 
@@ -101,7 +98,6 @@ export function createGameFlow(config: GameFlowConfig): GameFlow {
     sim.restart();
     board = sim.snapshot();
     lastLevel = board.level;
-    runStartHighScore = highScore;
     enter("ready");
   };
 
@@ -177,7 +173,6 @@ export function createGameFlow(config: GameFlowConfig): GameFlow {
       lives: board.lives,
       level: board.level,
       highScore,
-      isNewHighScore: board.score > runStartHighScore && board.score > 0,
       transition,
     }),
   };

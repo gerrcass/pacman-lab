@@ -297,7 +297,7 @@ describe("high score", () => {
     expect(memory.value()).toBe(900);
   });
 
-  it("flags a new high score only when the run beats the stored one", () => {
+  it("keeps the stored high score when the run does not beat it", () => {
     const { sim } = scriptedSim([snapshot({ score: 500 })]);
     const flow = createGameFlow({
       simulation: sim,
@@ -310,7 +310,6 @@ describe("high score", () => {
     toPlaying(flow);
     flow.step(IDLE);
     expect(flow.snapshot().highScore).toBe(1000);
-    expect(flow.snapshot().isNewHighScore).toBe(false);
   });
 });
 
