@@ -15,14 +15,16 @@ import {
   drawPellets,
   drawReady,
   drawTitle,
+  drawTouchControls,
   drawTransition,
+  dpadLayout,
   fitViewport,
 } from "../../render";
 import { createGameFlow } from "../gameFlow";
 import type { FlowSnapshot } from "../gameFlow";
 import { createLocalStorageHighScore } from "../highScore";
+import { createGameInput } from "../input";
 import { createSoundDriver } from "../sound";
-import { createGameInput } from "./input";
 
 const FIXED_STEP_MS = 1000 / 60;
 const MAX_FRAME_MS = 250;
@@ -38,7 +40,8 @@ export function createGame(canvas: HTMLCanvasElement): void {
     throw new Error("2D canvas context is unavailable");
   }
 
-  const input = createGameInput(window);
+  const touch = navigator.maxTouchPoints > 0;
+  const input = createGameInput(window, canvas, { touch });
   const simulation = createSimulation({ maze: CLASSIC_MAZE, seed: 1 });
   const flow = createGameFlow({ simulation, highScore: createLocalStorageHighScore() });
   const audio = createAudio();
@@ -93,6 +96,11 @@ export function createGame(canvas: HTMLCanvasElement): void {
         break;
       default:
         break;
+    }
+
+    // The d-pad is a control for the playable board, not another screen.
+    if (touch && showsActors(screen)) {
+      drawTouchControls(ctx, dpadLayout(canvas.width, canvas.height));
     }
 
     drawTransition(ctx, transition);
