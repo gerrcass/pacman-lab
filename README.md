@@ -5,12 +5,12 @@ for a four-beat agent workflow.
 
 ## Status
 
-The design is settled and published as the spec
-([issue #1](https://github.com/gerrcass/pacman-lab/issues/1), labelled
-`ready-for-agent`). The work is split into tickets with `/to-tickets`.
-Implementation runs one ticket per session through `/next-ticket`. The scaffold
-is in place: a TypeScript + Vite app that draws the classic Maze, with the
-repo's checks wired up. Game logic is still to come.
+The slice is complete. The design is settled and published as the spec
+([issue #1](https://github.com/gerrcass/pacman-lab/issues/1)), the work was
+split into tickets with `/to-tickets`, and each ticket ran through the
+four-beat workflow via `/next-ticket`. The game is a playable, polished PacMan
+on a deterministic core, and it is live at
+<https://gerrcass.github.io/pacman-lab/>.
 
 ## The workflow
 

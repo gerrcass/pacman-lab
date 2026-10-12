@@ -11,6 +11,16 @@ current evidence-capture recipe, see
 [evidence.md](./evidence.md); the capture entries below are the history of how
 it got there.
 
+## 2026-10-12 — Detect a terminal screen with a pixel probe, not a fixed wait
+
+Verifying the finished slice (#15), I sampled frames to a video and tried to stop
+when the run ended: first after a fixed duration, then when consecutive frames
+turned identical. The identical-frame rule fired during the READY countdown
+after a death, where the board is frozen for 1.5s, so the capture stopped on the
+wrong screen. The GAME OVER banner is the only large run of pure red on the
+board, so counting red pixels and stopping past a threshold lands on the real
+end. Probe for a screen's signature instead of guessing its timing. PR #33.
+
 ## 2026-10-12 — "Not unit-tested" scopes to the DOM, not the pure logic
 
 The spec's Testing Decisions say touch controls are "not unit-tested; covered by
