@@ -129,6 +129,32 @@ describe("lives and the death sequence", () => {
     expect(snap.state).toBe("playing");
     expect(snap.lives).toBe(3);
   });
+
+  it("carries the Scatter/Chase clock across a death instead of restarting it", () => {
+    // PacMan is caught during the Chase phase; after respawn the global clock
+    // is still on Chase, not rewound to the opening Scatter.
+    const rows = blank();
+    openRow(rows, 14, 6, 22);
+    rows[14]![6] = "P";
+    const sim = createSimulation({
+      maze: mazeOf(rows),
+      seed: 1,
+      ghosts: {
+        starts: [start("blinky", 21, 14, "right", "scatter")],
+        schedule: [
+          { mode: "scatter", ticks: 60 },
+          { mode: "chase", ticks: Infinity },
+        ],
+      },
+    });
+
+    const deathTick = stepUntil(sim, (snap) => snap.state === "death", 400);
+    expect(deathTick).toBeGreaterThan(60);
+
+    stepUntil(sim, (snap) => snap.state === "playing", DEATH_TICKS + 5);
+    sim.step({ desired: null });
+    expect(ghost(sim.snapshot(), "blinky").mode).toBe("chase");
+  });
 });
 
 describe("game over and restart", () => {

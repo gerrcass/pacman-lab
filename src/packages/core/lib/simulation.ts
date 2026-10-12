@@ -270,7 +270,9 @@ export function createSimulation(config: SimulationConfig): Simulation {
 
   // The tiles this tick's movement touched, in order; Pellets are eaten after
   // the move finishes so a Level-clear reset never happens mid-movement.
-  const traversed: GridPosition[] = []; // PacMan's motion this tick as an unwrapped polyline, for swept collision.
+  const traversed: GridPosition[] = [];
+
+  // PacMan's motion this tick as an unwrapped polyline, for swept collision.
   let pacmanPath: Point[] = [{ x: position.x, y: position.y }];
 
   const atCenter = (): boolean => isCentered(position.x) && isCentered(position.y);
@@ -418,9 +420,11 @@ export function createSimulation(config: SimulationConfig): Simulation {
     pellets.reset();
     rng = createRng(config.seed);
     placeActors(config.ghosts?.frightenedTicks ?? 0);
+    resetSchedule();
   }
 
-  /** Resets PacMan and the Ghosts to their starts and restarts the schedule. */
+  /** Returns PacMan and the Ghosts to their starts and clears the Frightened
+   * state. The Scatter/Chase clock is left where it is: a death pauses it. */
   function placeActors(frightened: number): void {
     position.x = maze.pacmanStart.x;
     position.y = maze.pacmanStart.y;
@@ -430,6 +434,10 @@ export function createSimulation(config: SimulationConfig): Simulation {
     ghostSpeed = ghostTilesPerTick(level, speed);
     frightenedTicks = frightened;
     ghostChain = 0;
+  }
+
+  /** Restarts the Scatter/Chase clock, as on a fresh game or a new Level. */
+  function resetSchedule(): void {
     schedule = scheduleFor(level);
     phaseIndex = 0;
     phaseTicks = 0;
@@ -526,5 +534,6 @@ export function createSimulation(config: SimulationConfig): Simulation {
     pellets.reset();
     pelletsEaten = 0;
     placeActors(0);
+    resetSchedule();
   }
 }
