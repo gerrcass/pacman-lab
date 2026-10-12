@@ -8,6 +8,25 @@ a skill, a tooling gap, a review finding that changed a rule, or a mistake worth
 not repeating. One short entry per event, with the issue or PR that acted on it.
 Run `/retro` at the end of a hard session and land its findings here.
 
+## 2026-10-11 — The `/before-and-after` upload hosts are both down
+
+Both bundled upload paths failed for PNGs on PR #20. The default `0x0st`
+adapter returns "uploads disabled ... AI botnet spam", and `IMAGE_ADAPTER=gist`
+dies with "binary file not supported" because `gh gist create` rejects binary
+files. Working fallback: upload with
+`curl -F reqtype=fileupload -F fileToUpload=@before.png https://catbox.moe/user/api.php`
+and paste the returned URL, or pass `--upload-url` a working endpoint. PR #20.
+
+## 2026-10-11 — A new deploy workflow can only run pre-merge via a branch push
+
+`workflow_dispatch` is unavailable until the workflow file is on the default
+branch (`gh workflow run` returns 404 for a branch-only file), but a `push`
+event uses the workflow from the pushed ref. To exercise a new deploy workflow
+before merge: add the branch to `on.push.branches`, add it to the
+`github-pages` environment's deployment branch policy, push, capture the run,
+then revert both. A deploy has no live "before" URL, so use the host's 404 page
+as the before shot. PR #20.
+
 ## 2026-10-11 — Greptile is enabled per repo, not per org
 
 `greptile onboard` reported the org complete, but Greptile did not review the
