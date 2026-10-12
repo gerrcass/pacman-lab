@@ -8,6 +8,8 @@ export type { Direction } from "./lib/direction";
 export { createSimulation } from "./lib/simulation";
 export type {
   Difficulty,
+  GhostConfig,
+  GhostSnapshot,
   Intent,
   PacmanSnapshot,
   Simulation,
@@ -15,5 +17,8 @@ export type {
   Snapshot,
 } from "./lib/simulation";
 export type { PelletKind, PelletMarker } from "./lib/pellets";
+
+export { ghostReleaseDots, ghostTilesPerTick, scatterChaseSchedule } from "./lib/tuning";
+export type { GhostId, GhostMode, GhostPhase, GhostPhaseMode, GhostStart } from "./lib/tuning";
 
 export const CLASSIC_MAZE = parseMaze(CLASSIC_MAZE_ROWS);
