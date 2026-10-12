@@ -1,5 +1,6 @@
 import type { Snapshot } from "../../core";
-import { COLORS, VIRTUAL_WIDTH } from "./constants";
+import { COLORS, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from "./constants";
+import { drawPacmanWedge } from "./drawPacman";
 import { drawText, textWidth } from "./font";
 import type { Viewport } from "./viewport";
 
@@ -8,11 +9,17 @@ const MARGIN = 8;
 const LABEL_Y = 2;
 const VALUE_Y = 13;
 
+const LIFE_RADIUS = 4;
+const LIFE_MOUTH = Math.PI / 5;
+const LIFE_Y = VIRTUAL_HEIGHT - 8;
+const LIFE_START_X = 10;
+const LIFE_GAP = 12;
+
 function pad(value: number, width: number): string {
   return String(value).padStart(width, "0");
 }
 
-/** Draws the HUD band above the Maze: score on the left, Level on the right. */
+/** Draws the HUD: score, Level, and one PacMan icon per life left. */
 export function drawHud(
   ctx: CanvasRenderingContext2D,
   snapshot: Snapshot,
@@ -35,4 +42,9 @@ export function drawHud(
     FONT,
   );
   drawText(ctx, level, VIRTUAL_WIDTH - MARGIN - textWidth(level, FONT.pixel), VALUE_Y, FONT);
+
+  ctx.fillStyle = COLORS.pacman;
+  for (let i = 0; i < snapshot.lives; i += 1) {
+    drawPacmanWedge(ctx, LIFE_START_X + i * LIFE_GAP, LIFE_Y, LIFE_RADIUS, Math.PI, LIFE_MOUTH);
+  }
 }

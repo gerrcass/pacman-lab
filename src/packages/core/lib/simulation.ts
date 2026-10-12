@@ -24,6 +24,7 @@ import type { PelletMarker } from "./pellets";
 import { createRng } from "./rng";
 import {
   CLASSIC_GHOST_STARTS,
+  DEATH_TICKS,
   eyesTilesPerTick,
   frightenedGhostPoints,
   frightenedTilesPerTick,
@@ -38,6 +39,9 @@ import type { GhostId, GhostMode, GhostPhase, GhostStart, HouseGhostId } from ".
 export type Intent = {
   readonly desired: Direction | null;
 };
+
+/** The game-flow state the simulation is in. */
+export type GameState = "playing" | "death" | "gameOver";
 
 export type PacmanSnapshot = {
   /** The grid tile PacMan occupies. */
@@ -63,10 +67,16 @@ export type GhostSnapshot = {
 
 export type Snapshot = {
   readonly tick: number;
+  /** The game-flow state the simulation is in. */
+  readonly state: GameState;
   /** Points scored so far, across all Levels. */
   readonly score: number;
+  /** Lives left before the game ends. */
+  readonly lives: number;
   /** The 1-based Level being played. */
   readonly level: number;
+  /** Ticks left in the death animation, 0 unless the state is "death". */
+  readonly deathTicksLeft: number;
   /** How many Pellets and Power Pellets are left in the current Maze. */
   readonly pelletsRemaining: number;
   /** The Pellets still on the board, with their kind, for the render layer. */
@@ -103,16 +113,26 @@ export type SimulationConfig = {
   readonly seed: number;
   readonly difficulty?: Difficulty;
   readonly ghosts?: GhostConfig;
+  /** Lives before the game ends; defaults to three. */
+  readonly lives?: number;
 };
 
 export type Simulation = {
   step(intent: Intent): void;
   snapshot(): Snapshot;
+  /**
+   * Starts a fresh game from the same config and seed: score, lives, Level,
+   * Pellets, and positions all reset, as if the simulation were recreated.
+   */
+  restart(): void;
 };
 
 export const DEFAULT_DIFFICULTY: Difficulty = {
   pacmanTilesPerTick: 1 / 8,
 };
+
+/** Lives a game starts with. */
+const DEFAULT_LIVES = 3;
 
 /** How close PacMan must be to overlap a Ghost, in tiles. */
 const GHOST_EAT_DISTANCE = 0.5;
@@ -216,7 +236,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
   const { maze } = config;
   const difficulty = config.difficulty ?? DEFAULT_DIFFICULTY;
   const speed = difficulty.pacmanTilesPerTick;
-  const rng = createRng(config.seed);
+  let rng = createRng(config.seed);
 
   const starts = config.ghosts?.starts ?? CLASSIC_GHOST_STARTS;
   const releasePellets = config.ghosts?.releasePellets ?? ghostReleasePellets();
@@ -224,9 +244,14 @@ export function createSimulation(config: SimulationConfig): Simulation {
   const scheduleFor = (value: number): readonly GhostPhase[] =>
     scheduleOverride ?? scatterChaseSchedule(value);
 
+  const initialLives = config.lives ?? DEFAULT_LIVES;
+
   let tick = 0;
+  let state: GameState = "playing";
   let score = 0;
+  let lives = initialLives;
   let level = 1;
+  let deathTicksLeft = 0;
   let pelletsEaten = 0;
   const pellets = createPelletBoard(maze);
   const position = { x: maze.pacmanStart.x, y: maze.pacmanStart.y };
@@ -245,9 +270,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
 
   // The tiles this tick's movement touched, in order; Pellets are eaten after
   // the move finishes so a Level-clear reset never happens mid-movement.
-  const traversed: GridPosition[] = [];
-
-  // PacMan's motion this tick as an unwrapped polyline, for swept collision.
+  const traversed: GridPosition[] = []; // PacMan's motion this tick as an unwrapped polyline, for swept collision.
   let pacmanPath: Point[] = [{ x: position.x, y: position.y }];
 
   const atCenter = (): boolean => isCentered(position.x) && isCentered(position.y);
@@ -317,9 +340,20 @@ export function createSimulation(config: SimulationConfig): Simulation {
     }
   };
 
+  resetGame();
+
   return {
     step(intent: Intent): void {
       tick += 1;
+
+      // A dead or finished game holds still until restart().
+      if (state === "gameOver") return;
+      if (state === "death") {
+        deathTicksLeft -= 1;
+        if (deathTicksLeft <= 0) endDeath();
+        return;
+      }
+
       if (frightenedTicks > 0) frightenedTicks -= 1;
       advanceSchedule();
       if (intent.desired !== null) next = intent.desired;
@@ -337,14 +371,17 @@ export function createSimulation(config: SimulationConfig): Simulation {
         pelletsEaten,
         releasePellets,
       });
-      resolveGhostEats();
+      resolveCollisions();
     },
 
     snapshot(): Snapshot {
       return {
         tick,
+        state,
         score,
+        lives,
         level,
+        deathTicksLeft,
         pelletsRemaining: pellets.remaining(),
         pellets: pellets.markers(),
         pacman: {
@@ -353,17 +390,68 @@ export function createSimulation(config: SimulationConfig): Simulation {
           direction,
           next,
         },
-        ghosts: ghosts.map((state) => ({
-          id: state.id,
-          mode: state.mode,
-          tile: centeredTile(state.position, maze.width),
-          position: { x: state.position.x, y: state.position.y },
-          direction: state.direction,
-          frightenedTicksLeft: isFrightened(state, frightenedTicks) ? frightenedTicks : 0,
+        ghosts: ghosts.map((ghost) => ({
+          id: ghost.id,
+          mode: ghost.mode,
+          tile: centeredTile(ghost.position, maze.width),
+          position: { x: ghost.position.x, y: ghost.position.y },
+          direction: ghost.direction,
+          frightenedTicksLeft: isFrightened(ghost, frightenedTicks) ? frightenedTicks : 0,
         })),
       };
     },
+
+    restart(): void {
+      resetGame();
+    },
   };
+
+  /** Puts every piece back to its starting state, as on a fresh game. */
+  function resetGame(): void {
+    tick = 0;
+    state = "playing";
+    score = 0;
+    lives = initialLives;
+    level = 1;
+    deathTicksLeft = 0;
+    pelletsEaten = 0;
+    pellets.reset();
+    rng = createRng(config.seed);
+    placeActors(config.ghosts?.frightenedTicks ?? 0);
+  }
+
+  /** Resets PacMan and the Ghosts to their starts and restarts the schedule. */
+  function placeActors(frightened: number): void {
+    position.x = maze.pacmanStart.x;
+    position.y = maze.pacmanStart.y;
+    direction = "left";
+    next = null;
+    ghosts = createGhostStates(starts);
+    ghostSpeed = ghostTilesPerTick(level, speed);
+    frightenedTicks = frightened;
+    ghostChain = 0;
+    schedule = scheduleFor(level);
+    phaseIndex = 0;
+    phaseTicks = 0;
+  }
+
+  /** A Ghost catches PacMan: start the death animation and spend a life. */
+  function beginDeath(): void {
+    state = "death";
+    deathTicksLeft = DEATH_TICKS;
+    lives -= 1;
+  }
+
+  /** When the death animation ends, respawn or, with no lives left, end the game. */
+  function endDeath(): void {
+    deathTicksLeft = 0;
+    if (lives > 0) {
+      state = "playing";
+      placeActors(0);
+      return;
+    }
+    state = "gameOver";
+  }
 
   function eatTraversed(): void {
     for (const tile of traversed) {
@@ -383,23 +471,42 @@ export function createSimulation(config: SimulationConfig): Simulation {
   function beginFrightened(): void {
     frightenedTicks = frightenedTicksForLevel(level);
     ghostChain = 0;
-    for (const state of ghosts) state.eatenRecovering = false;
+    for (const ghost of ghosts) ghost.eatenRecovering = false;
     markGhostsForReversal(ghosts, true);
   }
 
+  /** A Ghost out on the grid in Scatter or Chase catches PacMan; Frightened,
+   * eaten, leaving, and housed Ghosts do not. */
+  function isLethal(ghost: GhostState): boolean {
+    if (ghost.leaving) return false;
+    return ghost.mode === "scatter" || ghost.mode === "chase";
+  }
+
   /**
-   * Eats any Frightened Ghost PacMan overlaps, doubling the value each time.
-   * The check sweeps both movers' paths across the tick, so a fast PacMan or a
-   * Ghost that turns mid-tick still collides.
+   * Resolves PacMan's overlap with the Ghosts this tick. A lethal Ghost ends
+   * the run: the death sequence starts. Otherwise PacMan eats any Frightened
+   * Ghost he overlaps, doubling the value each time. Both checks sweep the
+   * movers' paths across the tick, so a fast PacMan or a Ghost that turns
+   * mid-tick still collides.
    */
-  function resolveGhostEats(): void {
-    for (const state of ghosts) {
-      if (state.mode !== "frightened") continue;
+  function resolveCollisions(): void {
+    for (const ghost of ghosts) {
+      if (!isLethal(ghost)) continue;
+      if (
+        pathsCollide(pacmanPath, speed, ghost.path, ghostSpeed, maze.width, GHOST_EAT_DISTANCE_SQ)
+      ) {
+        beginDeath();
+        return;
+      }
+    }
+
+    for (const ghost of ghosts) {
+      if (!isFrightened(ghost, frightenedTicks)) continue;
       if (
         !pathsCollide(
           pacmanPath,
           speed,
-          state.path,
+          ghost.path,
           frightenedSpeed,
           maze.width,
           GHOST_EAT_DISTANCE_SQ,
@@ -410,7 +517,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
 
       score += frightenedGhostPoints(ghostChain);
       ghostChain += 1;
-      markGhostEaten(state);
+      markGhostEaten(ghost);
     }
   }
 
@@ -418,16 +525,6 @@ export function createSimulation(config: SimulationConfig): Simulation {
     level += 1;
     pellets.reset();
     pelletsEaten = 0;
-    frightenedTicks = 0;
-    ghostChain = 0;
-    position.x = maze.pacmanStart.x;
-    position.y = maze.pacmanStart.y;
-    direction = "left";
-    next = null;
-    ghosts = createGhostStates(starts);
-    ghostSpeed = ghostTilesPerTick(level, speed);
-    schedule = scheduleFor(level);
-    phaseIndex = 0;
-    phaseTicks = 0;
+    placeActors(0);
   }
 }

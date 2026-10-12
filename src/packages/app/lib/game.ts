@@ -1,4 +1,5 @@
 import { CLASSIC_MAZE, createSimulation } from "../../core";
+import type { Snapshot } from "../../core";
 import {
   VIRTUAL_HEIGHT,
   VIRTUAL_WIDTH,
@@ -29,13 +30,12 @@ export function createGame(canvas: HTMLCanvasElement): void {
     canvas.height = Math.floor(window.innerHeight * ratio);
   };
 
-  const render = (): void => {
+  const render = (snapshot: Snapshot): void => {
     const viewport = fitViewport(canvas.width, canvas.height, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
-    const snapshot = simulation.snapshot();
     drawMaze(ctx, CLASSIC_MAZE, viewport);
     drawPellets(ctx, snapshot.pellets, viewport);
     drawGhosts(ctx, snapshot.ghosts, viewport);
-    drawPacman(ctx, snapshot.pacman, viewport);
+    drawPacman(ctx, snapshot, viewport);
     drawHud(ctx, snapshot, viewport);
   };
 
@@ -51,7 +51,16 @@ export function createGame(canvas: HTMLCanvasElement): void {
       accumulator -= FIXED_STEP_MS;
     }
 
-    render();
+    // Space or Enter restarts a finished run.
+    const startPressed = input.consumeStart();
+    const snapshot = simulation.snapshot();
+    if (startPressed && snapshot.state === "gameOver") {
+      simulation.restart();
+      render(simulation.snapshot());
+    } else {
+      render(snapshot);
+    }
+
     window.requestAnimationFrame(frame);
   };
 
