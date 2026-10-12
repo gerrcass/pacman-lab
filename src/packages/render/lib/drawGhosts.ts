@@ -9,6 +9,7 @@ import {
   MAZE_OFFSET_Y,
   TILE_SIZE,
 } from "./constants";
+import { applyPixelTransform } from "./transform";
 import type { Viewport } from "./viewport";
 
 const RADIUS = TILE_SIZE / 2 - 1;
@@ -81,8 +82,7 @@ export function drawGhosts(
   viewport: Viewport,
 ): void {
   ctx.save();
-  ctx.setTransform(viewport.scale, 0, 0, viewport.scale, viewport.offsetX, viewport.offsetY);
-  ctx.imageSmoothingEnabled = false;
+  applyPixelTransform(ctx, viewport);
 
   ctx.beginPath();
   ctx.rect(MAZE_OFFSET_X, MAZE_OFFSET_Y, MAZE_COLUMNS * TILE_SIZE, MAZE_ROWS * TILE_SIZE);

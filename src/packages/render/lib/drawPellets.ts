@@ -7,6 +7,7 @@ import {
   POWER_PELLET_RADIUS,
   TILE_SIZE,
 } from "./constants";
+import { applyPixelTransform } from "./transform";
 import type { Viewport } from "./viewport";
 
 /** Draws the Pellets still left in the Maze. */
@@ -15,8 +16,7 @@ export function drawPellets(
   pellets: readonly PelletMarker[],
   viewport: Viewport,
 ): void {
-  ctx.setTransform(viewport.scale, 0, 0, viewport.scale, viewport.offsetX, viewport.offsetY);
-  ctx.imageSmoothingEnabled = false;
+  applyPixelTransform(ctx, viewport);
   ctx.fillStyle = COLORS.pellet;
 
   for (const { tile, kind } of pellets) {

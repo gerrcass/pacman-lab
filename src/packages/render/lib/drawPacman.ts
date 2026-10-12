@@ -1,6 +1,7 @@
 import { DEATH_TICKS, MAZE_COLUMNS, MAZE_ROWS } from "../../core";
 import type { Direction, Snapshot } from "../../core";
 import { COLORS, MAZE_OFFSET_X, MAZE_OFFSET_Y, TILE_SIZE } from "./constants";
+import { applyPixelTransform } from "./transform";
 import type { Viewport } from "./viewport";
 
 const RADIUS = TILE_SIZE / 2 - 0.5;
@@ -46,7 +47,7 @@ export function drawPacman(
 
   const pacman = snapshot.pacman;
   ctx.save();
-  ctx.setTransform(viewport.scale, 0, 0, viewport.scale, viewport.offsetX, viewport.offsetY);
+  applyPixelTransform(ctx, viewport);
 
   // Keep every copy inside the Maze, so the wrapped sprite near a tunnel mouth
   // never leaks into the letterbox beside the Maze.

@@ -1,19 +1,33 @@
 import { CLASSIC_MAZE, createSimulation } from "../../core";
-import type { Snapshot } from "../../core";
 import {
   VIRTUAL_HEIGHT,
   VIRTUAL_WIDTH,
+  drawBoot,
+  drawGameOver,
   drawGhosts,
   drawHud,
+  drawLevelClear,
   drawMaze,
   drawPacman,
+  drawPaused,
   drawPellets,
+  drawReady,
+  drawTitle,
+  drawTransition,
   fitViewport,
 } from "../../render";
-import { createDirectionInput } from "./input";
+import { createGameFlow } from "../gameFlow";
+import type { FlowSnapshot } from "../gameFlow";
+import { createLocalStorageHighScore } from "../highScore";
+import { createGameInput } from "./input";
 
 const FIXED_STEP_MS = 1000 / 60;
 const MAX_FRAME_MS = 250;
+
+/** Screens that show the live board: Pellets, Ghosts and PacMan. */
+function showsActors(screen: FlowSnapshot["screen"]): boolean {
+  return screen === "ready" || screen === "playing" || screen === "paused" || screen === "death";
+}
 
 export function createGame(canvas: HTMLCanvasElement): void {
   const ctx = canvas.getContext("2d");
@@ -21,8 +35,9 @@ export function createGame(canvas: HTMLCanvasElement): void {
     throw new Error("2D canvas context is unavailable");
   }
 
-  const input = createDirectionInput(window);
+  const input = createGameInput(window);
   const simulation = createSimulation({ maze: CLASSIC_MAZE, seed: 1 });
+  const flow = createGameFlow({ simulation, highScore: createLocalStorageHighScore() });
 
   const resize = (): void => {
     const ratio = window.devicePixelRatio || 1;
@@ -30,13 +45,45 @@ export function createGame(canvas: HTMLCanvasElement): void {
     canvas.height = Math.floor(window.innerHeight * ratio);
   };
 
-  const render = (snapshot: Snapshot): void => {
+  const render = (state: FlowSnapshot): void => {
     const viewport = fitViewport(canvas.width, canvas.height, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+    const { screen, board, score, highScore, transition } = state;
+
+    if (screen === "boot") {
+      drawBoot(ctx, viewport);
+      drawTransition(ctx, transition);
+      return;
+    }
+
     drawMaze(ctx, CLASSIC_MAZE, viewport);
-    drawPellets(ctx, snapshot.pellets, viewport);
-    drawGhosts(ctx, snapshot.ghosts, viewport);
-    drawPacman(ctx, snapshot, viewport);
-    drawHud(ctx, snapshot, viewport);
+    if (showsActors(screen)) {
+      drawPellets(ctx, board.pellets, viewport);
+      drawGhosts(ctx, board.ghosts, viewport);
+      drawPacman(ctx, board, viewport);
+    }
+    drawHud(ctx, board, viewport, highScore);
+
+    switch (screen) {
+      case "title":
+        drawTitle(ctx, viewport, highScore);
+        break;
+      case "ready":
+        drawReady(ctx, viewport);
+        break;
+      case "paused":
+        drawPaused(ctx, viewport);
+        break;
+      case "levelClear":
+        drawLevelClear(ctx, viewport);
+        break;
+      case "gameOver":
+        drawGameOver(ctx, viewport, score, highScore);
+        break;
+      default:
+        break;
+    }
+
+    drawTransition(ctx, transition);
   };
 
   let last = performance.now();
@@ -47,20 +94,15 @@ export function createGame(canvas: HTMLCanvasElement): void {
     last = now;
 
     while (accumulator >= FIXED_STEP_MS) {
-      simulation.step({ desired: input.desired() });
+      flow.step({
+        desired: input.desired(),
+        start: input.takeStart(),
+        pause: input.takePause(),
+      });
       accumulator -= FIXED_STEP_MS;
     }
 
-    // Space or Enter restarts a finished run.
-    const startPressed = input.consumeStart();
-    const snapshot = simulation.snapshot();
-    if (startPressed && snapshot.state === "gameOver") {
-      simulation.restart();
-      render(simulation.snapshot());
-    } else {
-      render(snapshot);
-    }
-
+    render(flow.snapshot());
     window.requestAnimationFrame(frame);
   };
 
