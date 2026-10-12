@@ -14,5 +14,6 @@ export type {
   SimulationConfig,
   Snapshot,
 } from "./lib/simulation";
+export type { PelletKind, PelletMarker } from "./lib/pellets";
 
 export const CLASSIC_MAZE = parseMaze(CLASSIC_MAZE_ROWS);

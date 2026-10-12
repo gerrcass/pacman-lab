@@ -8,6 +8,18 @@ a skill, a tooling gap, a review finding that changed a rule, or a mistake worth
 not repeating. One short entry per event, with the issue or PR that acted on it.
 Run `/retro` at the end of a hard session and land its findings here.
 
+## 2026-10-11 — `agent-browser` hangs here; fall back to the Chrome DevTools MCP
+
+In this environment `agent-browser open` (and `doctor`, `screenshot`,
+`close --all`) hung or returned empty, and left a headed Chromium running on
+`:0`. `before-and-after` bundles the same CLI. The `/evidence-driven-testing`
+recorder needs a live headed session, so with `agent-browser` unusable, drive
+the page with the Chrome DevTools MCP instead and take per-capture screenshots
+into `.artifacts/<task>/` (the recorder's headless path). The
+`@vercel/before-and-after` CLI still assembles a pair from those existing PNGs
+with no browser, and the upload is a separate `curl` (see the 0x0.st entry).
+PR #21.
+
 ## 2026-10-11 — The `/before-and-after` upload hosts are both down
 
 Both bundled upload paths failed for PNGs on PR #20. The default `0x0st`

@@ -1,5 +1,13 @@
 import { CLASSIC_MAZE, createSimulation } from "../../core";
-import { VIRTUAL_HEIGHT, VIRTUAL_WIDTH, drawMaze, drawPacman, fitViewport } from "../../render";
+import {
+  VIRTUAL_HEIGHT,
+  VIRTUAL_WIDTH,
+  drawHud,
+  drawMaze,
+  drawPacman,
+  drawPellets,
+  fitViewport,
+} from "../../render";
 import { createDirectionInput } from "./input";
 
 const FIXED_STEP_MS = 1000 / 60;
@@ -22,8 +30,11 @@ export function createGame(canvas: HTMLCanvasElement): void {
 
   const render = (): void => {
     const viewport = fitViewport(canvas.width, canvas.height, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+    const snapshot = simulation.snapshot();
     drawMaze(ctx, CLASSIC_MAZE, viewport);
-    drawPacman(ctx, simulation.snapshot().pacman, viewport);
+    drawPellets(ctx, snapshot.pellets, viewport);
+    drawPacman(ctx, snapshot.pacman, viewport);
+    drawHud(ctx, snapshot, viewport);
   };
 
   let last = performance.now();

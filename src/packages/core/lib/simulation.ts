@@ -2,6 +2,8 @@ import { DIRECTION_VECTORS, opposite } from "./direction";
 import type { Direction } from "./direction";
 import { tileAt } from "./maze";
 import type { GridPosition, Maze } from "./maze";
+import { createPelletBoard } from "./pellets";
+import type { PelletMarker } from "./pellets";
 
 /** One tick's worth of player intent: the direction the player is asking for. */
 export type Intent = {
@@ -20,6 +22,14 @@ export type PacmanSnapshot = {
 
 export type Snapshot = {
   readonly tick: number;
+  /** Points scored so far, across all Levels. */
+  readonly score: number;
+  /** The 1-based Level being played. */
+  readonly level: number;
+  /** How many Pellets and Power Pellets are left in the current Maze. */
+  readonly pelletsRemaining: number;
+  /** The Pellets still on the board, with their kind, for the render layer. */
+  readonly pellets: readonly PelletMarker[];
   readonly pacman: PacmanSnapshot;
 };
 
@@ -69,9 +79,16 @@ export function createSimulation(config: SimulationConfig): Simulation {
   const speed = difficulty.pacmanTilesPerTick;
 
   let tick = 0;
+  let score = 0;
+  let level = 1;
+  const pellets = createPelletBoard(maze);
   const position = { x: maze.pacmanStart.x, y: maze.pacmanStart.y };
   let direction: Direction = "left";
   let next: Direction | null = null;
+
+  // The tiles this tick's movement touched, in order; Pellets are eaten after
+  // the move finishes so a Level-clear reset never happens mid-movement.
+  const traversed: GridPosition[] = [];
 
   const atCenter = (): boolean => isCentered(position.x) && isCentered(position.y);
 
@@ -79,6 +96,14 @@ export function createSimulation(config: SimulationConfig): Simulation {
     x: wrapX(maze, isCentered(position.x) ? Math.round(position.x) : Math.floor(position.x)),
     y: isCentered(position.y) ? Math.round(position.y) : Math.floor(position.y),
   });
+
+  /** Notes the tile center PacMan has reached, skipping a repeat of the previous one. */
+  const recordTile = (): void => {
+    if (!atCenter()) return;
+    const tile = currentTile();
+    const last = traversed[traversed.length - 1];
+    if (last === undefined || last.x !== tile.x || last.y !== tile.y) traversed.push(tile);
+  };
 
   const canEnter = (from: GridPosition, towards: Direction): boolean => {
     const vector = DIRECTION_VECTORS[towards];
@@ -101,6 +126,8 @@ export function createSimulation(config: SimulationConfig): Simulation {
   };
 
   const move = (): void => {
+    traversed.length = 0;
+
     // A reversal needs no tile center, so it applies the moment it is asked for.
     if (next !== null && next === opposite(direction)) {
       direction = next;
@@ -112,6 +139,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
     let budget = speed;
     for (;;) {
       if (atCenter()) {
+        recordTile();
         if (next !== null && canEnter(currentTile(), next)) {
           direction = next;
           next = null;
@@ -124,6 +152,9 @@ export function createSimulation(config: SimulationConfig): Simulation {
       budget -= step;
       if (budget <= EPSILON) break;
     }
+
+    // A tick that ends exactly on a center still counts as reaching it.
+    recordTile();
   };
 
   return {
@@ -131,11 +162,16 @@ export function createSimulation(config: SimulationConfig): Simulation {
       tick += 1;
       if (intent.desired !== null) next = intent.desired;
       move();
+      eatTraversed();
     },
 
     snapshot(): Snapshot {
       return {
         tick,
+        score,
+        level,
+        pelletsRemaining: pellets.remaining(),
+        pellets: pellets.markers(),
         pacman: {
           tile: currentTile(),
           position: { x: position.x, y: position.y },
@@ -145,4 +181,25 @@ export function createSimulation(config: SimulationConfig): Simulation {
       };
     },
   };
+
+  function eatTraversed(): void {
+    for (const tile of traversed) {
+      const consumed = pellets.consume(tile);
+      if (consumed === null) continue;
+      score += consumed.points;
+      if (pellets.remaining() === 0) {
+        advanceLevel();
+        return;
+      }
+    }
+  }
+
+  function advanceLevel(): void {
+    level += 1;
+    pellets.reset();
+    position.x = maze.pacmanStart.x;
+    position.y = maze.pacmanStart.y;
+    direction = "left";
+    next = null;
+  }
 }
