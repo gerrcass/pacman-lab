@@ -77,19 +77,20 @@ export type TouchRecognizer = {
 
 /**
  * Recognizes d-pad presses and swipes from a stream of pointer points on the
- * virtual grid. A press on the pad steers by the pad. Anywhere else, dragging
- * steers live once it passes the swipe threshold, and a press with no drag is a
- * tap: the start/confirm intent. Once a drag has steered, releasing it does not
- * also start.
+ * virtual grid. A press on the pad steers by the pad, but only while `padVisible`
+ * reports the pad is on screen; otherwise that area is ordinary canvas, so a tap
+ * there still starts. Anywhere else, dragging steers live once it passes the
+ * swipe threshold, and a press with no drag is a tap: the start/confirm intent.
+ * Once a drag has steered, releasing it does not also start.
  */
-export function createTouchRecognizer(): TouchRecognizer {
+export function createTouchRecognizer(padVisible: () => boolean): TouchRecognizer {
   let swipeStart: TouchPoint | null = null;
   let swipeSteered = false;
   let padActive = false;
 
   return {
     down(point) {
-      if (insideDpad(point.x, point.y, DPAD_LAYOUT)) {
+      if (padVisible() && insideDpad(point.x, point.y, DPAD_LAYOUT)) {
         padActive = true;
         return { direction: dpadDirectionAt(point.x, point.y, DPAD_LAYOUT), start: false };
       }
@@ -157,6 +158,7 @@ export function createGameInput(
   target: Window,
   canvas: HTMLCanvasElement,
   touch: boolean,
+  padVisible: () => boolean,
 ): GameInput {
   let desired: Direction | null = null;
   let startLatched = false;
@@ -192,7 +194,7 @@ export function createGameInput(
   });
 
   if (touch) {
-    const recognizer = createTouchRecognizer();
+    const recognizer = createTouchRecognizer(padVisible);
     const apply = (result: TouchResult): void => {
       if (result.direction !== null) desired = result.direction;
       if (result.start) startLatched = true;
@@ -200,9 +202,15 @@ export function createGameInput(
 
     canvas.addEventListener("pointerdown", (event) => {
       event.preventDefault();
+      // Capture the pointer so a release outside the canvas still ends the
+      // gesture instead of leaving it active.
+      canvas.setPointerCapture?.(event.pointerId);
       apply(recognizer.down(pointFromPointerEvent(canvas, event)));
     });
     canvas.addEventListener("pointermove", (event) => {
+      // A move with no button held is a hover, not a drag: ignore it so a
+      // stray mouse never steers.
+      if (event.buttons === 0) return;
       apply(recognizer.move(pointFromPointerEvent(canvas, event)));
     });
     canvas.addEventListener("pointerup", (event) => {

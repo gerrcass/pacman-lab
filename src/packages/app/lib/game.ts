@@ -41,9 +41,9 @@ export function createGame(canvas: HTMLCanvasElement): void {
   }
 
   const touch = navigator.maxTouchPoints > 0;
-  const input = createGameInput(window, canvas, touch);
   const simulation = createSimulation({ maze: CLASSIC_MAZE, seed: 1 });
   const flow = createGameFlow({ simulation, highScore: createLocalStorageHighScore() });
+  const input = createGameInput(window, canvas, touch, () => showsActors(flow.snapshot().screen));
   const audio = createAudio();
   const sound = createSoundDriver(audio);
 

@@ -50,50 +50,58 @@ describe("touch recognizer", () => {
   const padUp = { x: DPAD_LAYOUT.cx, y: DPAD_LAYOUT.cy - DPAD_LAYOUT.halfSize * 0.8 };
   const padRight = { x: DPAD_LAYOUT.cx + DPAD_LAYOUT.halfSize * 0.8, y: DPAD_LAYOUT.cy };
   const offPad = { x: 150, y: 150 };
+  const recognizer = (padVisible = true): ReturnType<typeof createTouchRecognizer> =>
+    createTouchRecognizer(() => padVisible);
 
   it("turns a d-pad press into a direction", () => {
-    const recognizer = createTouchRecognizer();
-    expect(recognizer.down(padUp).direction).toBe("up");
+    expect(recognizer().down(padUp).direction).toBe("up");
   });
 
   it("keeps steering while the pad finger moves", () => {
-    const recognizer = createTouchRecognizer();
-    recognizer.down(padUp);
-    expect(recognizer.move(padRight).direction).toBe("right");
+    const touch = recognizer();
+    touch.down(padUp);
+    expect(touch.move(padRight).direction).toBe("right");
+  });
+
+  it("treats a tap on the hidden pad as start, not a direction", () => {
+    const touch = recognizer(false);
+    expect(touch.down(padUp).direction).toBeNull();
+    const result = touch.up(padUp);
+    expect(result.direction).toBeNull();
+    expect(result.start).toBe(true);
   });
 
   it("steers live during a swipe, before release", () => {
-    const recognizer = createTouchRecognizer();
-    recognizer.down(offPad);
-    expect(recognizer.move({ x: 150 - SWIPE_MIN_DISTANCE - 4, y: 150 }).direction).toBe("left");
+    const touch = recognizer();
+    touch.down(offPad);
+    expect(touch.move({ x: 150 - SWIPE_MIN_DISTANCE - 4, y: 150 }).direction).toBe("left");
   });
 
   it("turns a fast swipe into its direction", () => {
-    const recognizer = createTouchRecognizer();
-    recognizer.down(offPad);
-    const result = recognizer.up({ x: 150 - SWIPE_MIN_DISTANCE - 4, y: 150 });
+    const touch = recognizer();
+    touch.down(offPad);
+    const result = touch.up({ x: 150 - SWIPE_MIN_DISTANCE - 4, y: 150 });
     expect(result.direction).toBe("left");
     expect(result.start).toBe(false);
   });
 
   it("treats a tap as start, not a direction", () => {
-    const recognizer = createTouchRecognizer();
-    recognizer.down(offPad);
-    const result = recognizer.up({ x: 154, y: 151 });
+    const touch = recognizer();
+    touch.down(offPad);
+    const result = touch.up({ x: 154, y: 151 });
     expect(result.direction).toBeNull();
     expect(result.start).toBe(true);
   });
 
   it("does not start when a drag steered then released", () => {
-    const recognizer = createTouchRecognizer();
-    recognizer.down(offPad);
-    recognizer.move({ x: 150 - SWIPE_MIN_DISTANCE - 4, y: 150 });
-    expect(recognizer.up({ x: 150 - SWIPE_MIN_DISTANCE - 4, y: 150 }).start).toBe(false);
+    const touch = recognizer();
+    touch.down(offPad);
+    touch.move({ x: 150 - SWIPE_MIN_DISTANCE - 4, y: 150 });
+    expect(touch.up({ x: 150 - SWIPE_MIN_DISTANCE - 4, y: 150 }).start).toBe(false);
   });
 
   it("ignores an up with no matching down", () => {
-    const recognizer = createTouchRecognizer();
-    expect(recognizer.up(offPad)).toEqual({ direction: null, start: false });
+    expect(recognizer().up(offPad)).toEqual({ direction: null, start: false });
   });
 });
 
@@ -139,8 +147,8 @@ function keyEvent(key: string): FakeEvent {
   return { key, repeat: false, preventDefault: () => {} };
 }
 
-function pointerEvent(x: number, y: number): FakeEvent {
-  return { clientX: x, clientY: y, preventDefault: () => {} };
+function pointerEvent(x: number, y: number, buttons = 1): FakeEvent {
+  return { clientX: x, clientY: y, buttons, pointerId: 1, preventDefault: () => {} };
 }
 
 describe("createGameInput", () => {
@@ -150,6 +158,7 @@ describe("createGameInput", () => {
       target as unknown as Window,
       fakeCanvas() as unknown as HTMLCanvasElement,
       false,
+      () => true,
     );
 
     target.dispatch("keydown", keyEvent("ArrowUp"));
@@ -169,6 +178,7 @@ describe("createGameInput", () => {
       fakeElement() as unknown as Window,
       canvas as unknown as HTMLCanvasElement,
       false,
+      () => true,
     );
 
     expect(canvas.has("pointerdown")).toBe(false);
@@ -185,6 +195,7 @@ describe("createGameInput", () => {
       fakeElement() as unknown as Window,
       canvas as unknown as HTMLCanvasElement,
       true,
+      () => true,
     );
 
     expect(canvas.has("pointerdown")).toBe(true);
@@ -196,12 +207,43 @@ describe("createGameInput", () => {
     expect(input.desired()).toBe("up");
   });
 
+  it("starts from a tap on the hidden d-pad", () => {
+    const canvas = fakeCanvas();
+    const input = createGameInput(
+      fakeElement() as unknown as Window,
+      canvas as unknown as HTMLCanvasElement,
+      true,
+      () => false,
+    );
+
+    const pad = pointerEvent(DPAD_LAYOUT.cx, DPAD_LAYOUT.cy - DPAD_LAYOUT.halfSize * 0.8);
+    canvas.dispatch("pointerdown", pad);
+    canvas.dispatch("pointerup", pad);
+    expect(input.desired()).toBeNull();
+    expect(input.takeStart()).toBe(true);
+  });
+
+  it("ignores a pointer move with no button held", () => {
+    const canvas = fakeCanvas();
+    const input = createGameInput(
+      fakeElement() as unknown as Window,
+      canvas as unknown as HTMLCanvasElement,
+      true,
+      () => true,
+    );
+
+    canvas.dispatch("pointerdown", pointerEvent(150, 150));
+    canvas.dispatch("pointermove", pointerEvent(130, 150, 0));
+    expect(input.desired()).toBeNull();
+  });
+
   it("steers from a swipe and starts from a tap on a touch device", () => {
     const canvas = fakeCanvas();
     const input = createGameInput(
       fakeElement() as unknown as Window,
       canvas as unknown as HTMLCanvasElement,
       true,
+      () => true,
     );
 
     canvas.dispatch("pointerdown", pointerEvent(150, 150));
