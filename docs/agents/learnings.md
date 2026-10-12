@@ -11,6 +11,16 @@ current evidence-capture recipe, see
 [evidence.md](./evidence.md); the capture entries below are the history of how
 it got there.
 
+## 2026-10-12 — "Not unit-tested" scopes to the DOM, not the pure logic
+
+The spec's Testing Decisions say touch controls are "not unit-tested; covered by
+recorded evidence." That excludes tests of the DOM/rendering interaction, not the
+pure logic behind it. Pin the pure seams (swipe direction, d-pad geometry, the
+gesture state machine) with unit tests, and leave the pointer wiring to the
+recorded capture. This refines the PR #25 entry, which says not to add an
+out-of-policy test to satisfy a bot: the two agree once "out-of-policy" means the
+DOM layer. PR #31.
+
 ## 2026-10-12 — The evidence beat caught a per-tick siren retune
 
 Unit tests drove `setSiren` in single steps, so they passed while the audio
