@@ -9,6 +9,10 @@ export const PELLET_RADIUS = 1.5;
 export const POWER_PELLET_RADIUS = 3;
 export const WALL_THICKNESS = 1;
 
+/** Frightened Ghosts flash for the last two seconds before they recover. */
+export const FRIGHTENED_FLASH_TICKS = 120;
+export const FRIGHTENED_FLASH_INTERVAL = 15;
+
 export const COLORS = {
   background: "#000000",
   wall: "#2121de",
@@ -17,7 +21,10 @@ export const COLORS = {
   pacman: "#ffff00",
   hud: "#ffffff",
   ghostEye: "#ffffff",
+  ghostEyeFlash: "#ff0000",
   ghostPupil: "#2121de",
+  frightened: "#2121de",
+  frightenedFlash: "#ffffff",
 } as const;
 
 /** The classic Ghost colours, by Ghost. */

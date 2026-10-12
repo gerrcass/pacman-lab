@@ -19,10 +19,12 @@ export function wrapX(width: number, x: number): number {
   return ((x % width) + width) % width;
 }
 
-/** A tile the walker may occupy: corridors and the tiles carrying Pellets. */
-export function isWalkable(maze: Maze, x: number, y: number): boolean {
+/** A tile a walker may occupy: corridors and the tiles carrying Pellets. Eyes
+ * may also cross the house door. */
+export function isWalkable(maze: Maze, x: number, y: number, allowDoor = false): boolean {
   const type = tileAt(maze, wrapX(maze.width, x), y);
-  return type === "empty" || type === "pellet" || type === "powerPellet";
+  if (type === "empty" || type === "pellet" || type === "powerPellet") return true;
+  return allowDoor && type === "door";
 }
 
 /** The in-bounds tile nearest a continuous position, x wrapped around the tunnels. */
@@ -49,4 +51,18 @@ export function advancePosition(
   const vector = DIRECTION_VECTORS[direction];
   position.x = wrapX(width, position.x + vector.x * distance);
   position.y += vector.y * distance;
+}
+
+/**
+ * Appends a point to a path, unwrapping x so consecutive points stay
+ * continuous across the tunnels. The result is a polyline safe to measure.
+ */
+export function appendPathPoint(path: Position[], x: number, y: number, width: number): void {
+  const previous = path[path.length - 1];
+  let unwrappedX = x;
+  if (previous !== undefined) {
+    while (unwrappedX - previous.x > width / 2) unwrappedX -= width;
+    while (unwrappedX - previous.x < -width / 2) unwrappedX += width;
+  }
+  path.push({ x: unwrappedX, y });
 }

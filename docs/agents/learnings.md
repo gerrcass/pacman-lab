@@ -8,6 +8,13 @@ a skill, a tooling gap, a review finding that changed a rule, or a mistake worth
 not repeating. One short entry per event, with the issue or PR that acted on it.
 Run `/retro` at the end of a hard session and land its findings here.
 
+## 2026-10-12 — Embed PR evidence as Markdown images, not bare URLs
+
+The `before-and-after` CLI and the catbox fallback both hand back a hosted URL.
+Pasting that URL as plain text makes a reviewer click through to see the shot.
+Wrap each in Markdown image syntax (`![After](https://...)`) so it renders in the
+PR body, and put the before/after pair side by side in a table. PR #23.
+
 ## 2026-10-11 — Detach background dev servers or the shell kills them
 
 `nohup npx vite ... &` launched through the agent's shell does not survive the
