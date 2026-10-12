@@ -26,6 +26,9 @@ and tied together by [`AGENTS.md`](./AGENTS.md):
 
 `/unslop` runs over anything written for a human: commits, PRs, docs, replies.
 
+The full harness, the checks and gates, and how a ticket flows end to end are in
+[docs/agents/workflow.md](./docs/agents/workflow.md).
+
 To run the four beats on one ticket without driving each by hand, start a fresh
 session and run **`/next-ticket`** (repo-local): it picks the next ready ticket
 from the tracker and stops at the open PR. Repeat once per ticket.
@@ -65,8 +68,7 @@ AGENTS.md                 workflow + repo-specific callouts
 skills-lock.json          pinned skill sources and hashes
 .agents/skills/           installed skills
 .agents/skills/next-ticket/  repo-local per-ticket runner
-docs/agents/              issue-tracker, triage-label, domain-doc config,
-                          and workflow learnings
+docs/agents/              workflow architecture, tracker, evidence, learnings
 docs/adr/                 architecture decision records (0001-0003)
 GLOSSARY.md               domain vocabulary
 index.html                the app entry
@@ -74,6 +76,7 @@ src/packages/             deep modules; each hides its implementation in lib/
   core/                   pure, deterministic simulation (ADR-0001)
   render/                 Canvas 2D rendering
   app/                    orchestration and the frame loop
+tools/pw.sh               runs a Playwright capture script
 .worktrees/               per-task git worktrees (gitignored)
 .artifacts/               evidence captures (gitignored)
 ```
