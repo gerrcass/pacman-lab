@@ -1,9 +1,26 @@
 import { DIRECTION_VECTORS, opposite } from "./direction";
 import type { Direction } from "./direction";
-import { tileAt } from "./maze";
+import {
+  EPSILON,
+  advancePosition,
+  centeredTile,
+  distanceToNextCenter,
+  isCentered,
+  isWalkable,
+  wrapX,
+} from "./gridMovement";
 import type { GridPosition, Maze } from "./maze";
+import { createGhostStates, markGhostsForReversal, updateGhosts } from "./ghosts";
+import type { GhostState } from "./ghosts";
 import { createPelletBoard } from "./pellets";
 import type { PelletMarker } from "./pellets";
+import {
+  CLASSIC_GHOST_STARTS,
+  ghostReleasePellets,
+  ghostTilesPerTick,
+  scatterChaseSchedule,
+} from "./tuning";
+import type { GhostId, GhostMode, GhostPhase, GhostStart, HouseGhostId } from "./tuning";
 
 /** One tick's worth of player intent: the direction the player is asking for. */
 export type Intent = {
@@ -20,6 +37,18 @@ export type PacmanSnapshot = {
   readonly next: Direction | null;
 };
 
+export type GhostSnapshot = {
+  readonly id: GhostId;
+  readonly mode: GhostMode;
+  /** The grid tile the Ghost is nearest, x wrapped at the tunnels. */
+  readonly tile: GridPosition;
+  /** Continuous position in tile units, for smooth rendering. */
+  readonly position: GridPosition;
+  readonly direction: Direction;
+  /** Ticks of Frightened left; always 0 until Power Pellets arrive. */
+  readonly frightenedTicksLeft: number;
+};
+
 export type Snapshot = {
   readonly tick: number;
   /** Points scored so far, across all Levels. */
@@ -31,6 +60,8 @@ export type Snapshot = {
   /** The Pellets still on the board, with their kind, for the render layer. */
   readonly pellets: readonly PelletMarker[];
   readonly pacman: PacmanSnapshot;
+  /** The four Ghosts, in Blinky, Pinky, Inky, Clyde order. */
+  readonly ghosts: readonly GhostSnapshot[];
 };
 
 export type Difficulty = {
@@ -38,15 +69,26 @@ export type Difficulty = {
   readonly pacmanTilesPerTick: number;
 };
 
+/** Overrides for the Ghost house, mainly for tests and future difficulties. */
+export type GhostConfig = {
+  /** Initial Ghost states; defaults to the classic arcade homes. */
+  readonly starts?: readonly GhostStart[];
+  /** Pellets eaten before each house Ghost is released. */
+  readonly releasePellets?: Readonly<Record<HouseGhostId, number>>;
+  /** Overrides the per-Level Scatter/Chase schedule. */
+  readonly schedule?: readonly GhostPhase[];
+};
+
 export type SimulationConfig = {
   readonly maze: Maze;
   /**
-   * Seeds the deterministic RNG. Movement draws no randomness yet, but the seed
-   * is part of the contract: a config, seed, and intent sequence must reproduce
-   * the same snapshot sequence once randomness (Ghosts, Fruit) arrives.
+   * Seeds the deterministic RNG. Ghost movement draws no randomness yet, but
+   * the seed is part of the contract: a config, seed, and intent sequence must
+   * reproduce the same snapshot sequence once Frightened turns arrive.
    */
   readonly seed: number;
   readonly difficulty?: Difficulty;
+  readonly ghosts?: GhostConfig;
 };
 
 export type Simulation = {
@@ -58,33 +100,31 @@ export const DEFAULT_DIFFICULTY: Difficulty = {
   pacmanTilesPerTick: 1 / 8,
 };
 
-const EPSILON = 1e-6;
-
-function isCentered(value: number): boolean {
-  return Math.abs(value - Math.round(value)) < EPSILON;
-}
-
-function wrapX(maze: Maze, x: number): number {
-  return ((x % maze.width) + maze.width) % maze.width;
-}
-
-function isWalkable(maze: Maze, x: number, y: number): boolean {
-  const type = tileAt(maze, wrapX(maze, x), y);
-  return type === "empty" || type === "pellet" || type === "powerPellet";
-}
-
 export function createSimulation(config: SimulationConfig): Simulation {
   const { maze } = config;
   const difficulty = config.difficulty ?? DEFAULT_DIFFICULTY;
   const speed = difficulty.pacmanTilesPerTick;
 
+  const starts = config.ghosts?.starts ?? CLASSIC_GHOST_STARTS;
+  const releasePellets = config.ghosts?.releasePellets ?? ghostReleasePellets();
+  const scheduleOverride = config.ghosts?.schedule;
+  const scheduleFor = (value: number): readonly GhostPhase[] =>
+    scheduleOverride ?? scatterChaseSchedule(value);
+
   let tick = 0;
   let score = 0;
   let level = 1;
+  let pelletsEaten = 0;
   const pellets = createPelletBoard(maze);
   const position = { x: maze.pacmanStart.x, y: maze.pacmanStart.y };
   let direction: Direction = "left";
   let next: Direction | null = null;
+
+  let ghosts: GhostState[] = createGhostStates(starts);
+  let ghostSpeed = ghostTilesPerTick(level, speed);
+  let schedule: readonly GhostPhase[] = scheduleFor(level);
+  let phaseIndex = 0;
+  let phaseTicks = 0;
 
   // The tiles this tick's movement touched, in order; Pellets are eaten after
   // the move finishes so a Level-clear reset never happens mid-movement.
@@ -93,7 +133,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
   const atCenter = (): boolean => isCentered(position.x) && isCentered(position.y);
 
   const currentTile = (): GridPosition => ({
-    x: wrapX(maze, isCentered(position.x) ? Math.round(position.x) : Math.floor(position.x)),
+    x: wrapX(maze.width, isCentered(position.x) ? Math.round(position.x) : Math.floor(position.x)),
     y: isCentered(position.y) ? Math.round(position.y) : Math.floor(position.y),
   });
 
@@ -108,21 +148,6 @@ export function createSimulation(config: SimulationConfig): Simulation {
   const canEnter = (from: GridPosition, towards: Direction): boolean => {
     const vector = DIRECTION_VECTORS[towards];
     return isWalkable(maze, from.x + vector.x, from.y + vector.y);
-  };
-
-  /** Distance from the current position to the next tile center in `direction`. */
-  const distanceToNextCenter = (): number => {
-    const vector = DIRECTION_VECTORS[direction];
-    if (vector.x > 0) return isCentered(position.x) ? 1 : Math.ceil(position.x) - position.x;
-    if (vector.x < 0) return isCentered(position.x) ? 1 : position.x - Math.floor(position.x);
-    if (vector.y > 0) return isCentered(position.y) ? 1 : Math.ceil(position.y) - position.y;
-    return isCentered(position.y) ? 1 : position.y - Math.floor(position.y);
-  };
-
-  const advanceBy = (distance: number): void => {
-    const vector = DIRECTION_VECTORS[direction];
-    position.x = wrapX(maze, position.x + vector.x * distance);
-    position.y += vector.y * distance;
   };
 
   const move = (): void => {
@@ -147,8 +172,8 @@ export function createSimulation(config: SimulationConfig): Simulation {
         if (!canEnter(currentTile(), direction)) break;
       }
 
-      const step = Math.min(budget, distanceToNextCenter());
-      advanceBy(step);
+      const step = Math.min(budget, distanceToNextCenter(position, direction));
+      advancePosition(position, direction, step, maze.width);
       budget -= step;
       if (budget <= EPSILON) break;
     }
@@ -157,12 +182,34 @@ export function createSimulation(config: SimulationConfig): Simulation {
     recordTile();
   };
 
+  const currentGlobalMode = (): "scatter" | "chase" => schedule[phaseIndex]?.mode ?? "chase";
+
+  const advanceSchedule = (): void => {
+    phaseTicks += 1;
+    let phase = schedule[phaseIndex]!;
+    while (phaseIndex < schedule.length - 1 && phaseTicks > phase.ticks) {
+      phaseTicks -= phase.ticks;
+      phaseIndex += 1;
+      markGhostsForReversal(ghosts);
+      phase = schedule[phaseIndex]!;
+    }
+  };
+
   return {
     step(intent: Intent): void {
       tick += 1;
+      advanceSchedule();
       if (intent.desired !== null) next = intent.desired;
       move();
       eatTraversed();
+      updateGhosts(ghosts, {
+        maze,
+        pacman: { tile: currentTile(), direction },
+        globalMode: currentGlobalMode(),
+        speed: ghostSpeed,
+        pelletsEaten,
+        releasePellets,
+      });
     },
 
     snapshot(): Snapshot {
@@ -178,6 +225,14 @@ export function createSimulation(config: SimulationConfig): Simulation {
           direction,
           next,
         },
+        ghosts: ghosts.map((state) => ({
+          id: state.id,
+          mode: state.mode,
+          tile: centeredTile(state.position, maze.width),
+          position: { x: state.position.x, y: state.position.y },
+          direction: state.direction,
+          frightenedTicksLeft: 0,
+        })),
       };
     },
   };
@@ -187,6 +242,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
       const consumed = pellets.consume(tile);
       if (consumed === null) continue;
       score += consumed.points;
+      pelletsEaten += 1;
       if (pellets.remaining() === 0) {
         advanceLevel();
         return;
@@ -197,9 +253,15 @@ export function createSimulation(config: SimulationConfig): Simulation {
   function advanceLevel(): void {
     level += 1;
     pellets.reset();
+    pelletsEaten = 0;
     position.x = maze.pacmanStart.x;
     position.y = maze.pacmanStart.y;
     direction = "left";
     next = null;
+    ghosts = createGhostStates(starts);
+    ghostSpeed = ghostTilesPerTick(level, speed);
+    schedule = scheduleFor(level);
+    phaseIndex = 0;
+    phaseTicks = 0;
   }
 }

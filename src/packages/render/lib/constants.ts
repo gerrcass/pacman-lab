@@ -16,4 +16,14 @@ export const COLORS = {
   door: "#ffb8ff",
   pacman: "#ffff00",
   hud: "#ffffff",
+  ghostEye: "#ffffff",
+  ghostPupil: "#2121de",
+} as const;
+
+/** The classic Ghost colours, by Ghost. */
+export const GHOST_COLORS = {
+  blinky: "#ff0000",
+  pinky: "#ffb8ff",
+  inky: "#00ffff",
+  clyde: "#ffb852",
 } as const;

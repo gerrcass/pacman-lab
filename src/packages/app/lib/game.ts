@@ -2,6 +2,7 @@ import { CLASSIC_MAZE, createSimulation } from "../../core";
 import {
   VIRTUAL_HEIGHT,
   VIRTUAL_WIDTH,
+  drawGhosts,
   drawHud,
   drawMaze,
   drawPacman,
@@ -33,6 +34,7 @@ export function createGame(canvas: HTMLCanvasElement): void {
     const snapshot = simulation.snapshot();
     drawMaze(ctx, CLASSIC_MAZE, viewport);
     drawPellets(ctx, snapshot.pellets, viewport);
+    drawGhosts(ctx, snapshot.ghosts, viewport);
     drawPacman(ctx, snapshot.pacman, viewport);
     drawHud(ctx, snapshot, viewport);
   };
