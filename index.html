@@ -13,12 +13,15 @@
         margin: 0;
         height: 100%;
         overflow: hidden;
+        overscroll-behavior: none;
         background: #000;
       }
       canvas#game {
         display: block;
         width: 100vw;
         height: 100vh;
+        touch-action: none;
+        -webkit-tap-highlight-color: transparent;
       }
     </style>
   </head>
