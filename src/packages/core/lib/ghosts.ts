@@ -13,7 +13,7 @@ import type { GridPosition, Maze } from "./maze";
 import type { Rng } from "./rng";
 import { chaseTarget, scatterTarget } from "./targeting";
 import type { PacManPose } from "./targeting";
-import { GHOST_RETURN_ROUTES, GHOST_RELEASE_ROUTES } from "./tuning";
+import { GHOST_RELEASE_ROUTES } from "./tuning";
 import type { GhostId, GhostMode, GhostPhaseMode, GhostStart, HouseGhostId } from "./tuning";
 
 export type GhostState = {
@@ -24,8 +24,6 @@ export type GhostState = {
   readonly home: GridPosition;
   /** True while the Ghost is walking its door route out of the house. */
   leaving: boolean;
-  /** True while eyes are walking the door route back into the house. */
-  returning: boolean;
   /**
    * True from the moment a Ghost is eaten until the current Frightened ends, so
    * it does not turn blue again for the rest of the stretch it was eaten in.
@@ -50,7 +48,6 @@ export function createGhostStates(starts: readonly GhostStart[]): GhostState[] {
     direction: entry.direction,
     home: { x: entry.tile.x, y: entry.tile.y },
     leaving: false,
-    returning: false,
     eatenRecovering: false,
     route: [],
     exitTile: null,
@@ -80,7 +77,6 @@ export function isFrightened(state: GhostState, frightenedTicksLeft: number): bo
 /** Sends a Ghost home as eyes after PacMan eats it. */
 export function markGhostEaten(state: GhostState): void {
   state.mode = "eaten";
-  state.returning = false;
   state.eatenRecovering = true;
   state.leaving = false;
   state.route = [];
@@ -186,55 +182,38 @@ function followRoute(state: GhostState, speed: number): void {
   });
 }
 
-/** An eaten Ghost's eyes head for the door tile above the house, then descend. */
+/** An eaten Ghost's eyes race home, then it rejoins play. The eyes may cross
+ * the house door, so they can reach a home inside the house on any maze. */
 function updateEaten(state: GhostState, context: GhostContext): void {
-  const ret = GHOST_RETURN_ROUTES[state.id];
-  if (state.returning) {
-    followReturnRoute(state, context);
-    return;
-  }
-
   const pursue = (from: GridPosition): Direction =>
-    chooseDirection(context.maze, state, from, ret.entrance);
+    chooseDirection(context.maze, state, from, state.home, true);
   const arrived = moveGhostPath(
     context.maze,
     state,
     context.eyesSpeed,
     pursue,
     false,
-    ret.entrance,
+    state.home,
+    true,
   );
-  if (!arrived) return;
-
-  state.returning = true;
-  state.route = ret.route.map((tile) => ({ ...tile }));
-  if (state.route.length === 0) finalizeReturn(state, context);
-}
-
-/** Walks the scripted route down through the door to the Ghost's home. */
-function followReturnRoute(state: GhostState, context: GhostContext): void {
-  walkRoute(state, context.eyesSpeed, () => {
-    if (state.returning) finalizeReturn(state, context);
-  });
+  if (arrived) finalizeReturn(state, context);
 }
 
 /** Puts a returned Ghost back into play: on the grid for Blinky, home for the rest. */
 function finalizeReturn(state: GhostState, context: GhostContext): void {
-  const ret = GHOST_RETURN_ROUTES[state.id];
-  state.returning = false;
   state.route = [];
   state.exitTile = null;
   state.pendingReverse = false;
+  state.position.x = state.home.x;
+  state.position.y = state.home.y;
 
-  if (state.home.x === ret.entrance.x && state.home.y === ret.entrance.y) {
+  if (state.id === "blinky") {
     state.mode = context.globalMode;
     return;
   }
 
   state.mode = "house";
   state.leaving = false;
-  state.position.x = state.home.x;
-  state.position.y = state.home.y;
   state.bobDirection = "up";
 }
 
@@ -282,11 +261,16 @@ function walkRoute(state: GhostState, speed: number, onArrive: () => void): void
 }
 
 /** The walkable neighbours a Ghost may take, never reversing unless it must. */
-function forwardOptions(maze: Maze, state: GhostState, tile: GridPosition): Direction[] {
+function forwardOptions(
+  maze: Maze,
+  state: GhostState,
+  tile: GridPosition,
+  allowDoor = false,
+): Direction[] {
   const reverse = opposite(state.direction);
   const passes = (direction: Direction): boolean => {
     const vector = DIRECTION_VECTORS[direction];
-    return isWalkable(maze, tile.x + vector.x, tile.y + vector.y);
+    return isWalkable(maze, tile.x + vector.x, tile.y + vector.y, allowDoor);
   };
   const forward = DIRECTION_ORDER.filter((d) => d !== reverse && passes(d));
   return forward.length > 0 ? forward : [reverse].filter(passes);
@@ -302,8 +286,9 @@ function chooseDirection(
   state: GhostState,
   tile: GridPosition,
   target: GridPosition,
+  allowDoor = false,
 ): Direction {
-  const options = forwardOptions(maze, state, tile);
+  const options = forwardOptions(maze, state, tile, allowDoor);
   if (options.length === 0) return state.direction;
 
   let best = options[0]!;
@@ -366,6 +351,7 @@ function moveGhostPath(
   choose: (tile: GridPosition) => Direction,
   commitStart: boolean,
   stopAt: GridPosition | null,
+  allowDoor = false,
 ): boolean {
   let budget = speed;
   let atFirstCenter = true;
@@ -378,7 +364,7 @@ function moveGhostPath(
         state.direction = choose(tile);
       }
       const vector = DIRECTION_VECTORS[state.direction];
-      if (!isWalkable(maze, tile.x + vector.x, tile.y + vector.y)) break;
+      if (!isWalkable(maze, tile.x + vector.x, tile.y + vector.y, allowDoor)) break;
     }
     atFirstCenter = false;
 

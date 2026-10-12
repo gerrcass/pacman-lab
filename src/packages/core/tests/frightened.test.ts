@@ -232,6 +232,60 @@ describe("frightened: eating Ghosts", () => {
     expect(blinky.frightenedTicksLeft).toBe(0);
   });
 
+  it("rejoins a custom-home Blinky on the grid, not the house", () => {
+    // Blinky's home is a plain corridor tile, not the classic door tile.
+    const rows = blank();
+    openRow(rows, 14, 4, 22);
+    rows[14]![20] = "P";
+    rows[1]![1] = ".";
+    const sim = createSimulation({
+      maze: mazeOf(rows),
+      seed: 1,
+      ghosts: {
+        starts: [start("blinky", 14, 14, "left", "chase")],
+        schedule: ALWAYS_CHASE,
+        frightenedTicks: 600,
+      },
+    });
+
+    let eaten = false;
+    let rejoinedMode: string | null = null;
+    for (let i = 0; i < 600; i += 1) {
+      sim.step({ desired: null });
+      const blinky = ghost(sim.snapshot(), "blinky");
+      if (blinky.mode === "eaten") eaten = true;
+      if (eaten && blinky.mode !== "eaten") {
+        rejoinedMode = blinky.mode;
+        break;
+      }
+    }
+
+    expect(eaten).toBe(true);
+    expect(rejoinedMode).not.toBe("house");
+  });
+
+  it("eats a Frightened Ghost crossed mid-tick at high speed", () => {
+    // PacMan steps three tiles left while the Ghost steps right; they cross in
+    // the middle of the tick and never share an end-of-tick position.
+    const rows = blank();
+    openRow(rows, 14, 0, MAZE_COLUMNS - 1);
+    rows[14]![13] = "P";
+    rows[1]![1] = ".";
+    const sim = createSimulation({
+      maze: mazeOf(rows),
+      seed: 1,
+      difficulty: { pacmanTilesPerTick: 3 },
+      ghosts: {
+        starts: [start("blinky", 12, 14, "right", "chase")],
+        schedule: ALWAYS_CHASE,
+        frightenedTicks: 600,
+      },
+    });
+
+    sim.step({ desired: null });
+    expect(sim.snapshot().score).toBe(200);
+  });
+
   it("returns a house Ghost to the house and releases it again", () => {
     const rows = blank();
     openColumn(rows, 13, 8, 20);

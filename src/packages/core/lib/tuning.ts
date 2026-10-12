@@ -79,46 +79,6 @@ export function ghostReleasePellets(): Readonly<Record<HouseGhostId, number>> {
   return { pinky: 0, inky: 30, clyde: 60 };
 }
 
-/** How an eaten Ghost's eyes get back to the house: the door tile above the
- * house it aims for, then the tiles it walks down to its home. Blinky lives
- * above the door, so his route is empty and he rejoins on the grid. */
-export type GhostReturn = {
-  readonly entrance: GridPosition;
-  readonly route: readonly GridPosition[];
-};
-
-export const GHOST_RETURN_ROUTES: Readonly<Record<GhostId, GhostReturn>> = {
-  blinky: { entrance: { x: 13, y: 11 }, route: [] },
-  pinky: {
-    entrance: { x: 13, y: 11 },
-    route: [
-      { x: 13, y: 12 },
-      { x: 13, y: 13 },
-      { x: 13, y: 14 },
-    ],
-  },
-  inky: {
-    entrance: { x: 13, y: 11 },
-    route: [
-      { x: 13, y: 12 },
-      { x: 13, y: 13 },
-      { x: 13, y: 14 },
-      { x: 12, y: 14 },
-      { x: 11, y: 14 },
-    ],
-  },
-  clyde: {
-    entrance: { x: 14, y: 11 },
-    route: [
-      { x: 14, y: 12 },
-      { x: 14, y: 13 },
-      { x: 14, y: 14 },
-      { x: 15, y: 14 },
-      { x: 16, y: 14 },
-    ],
-  },
-};
-
 /**
  * Arcade Frightened durations in seconds by Level. The timer is per Power
  * Pellet, not per Level; later Levels shrink it, and 0 means a Power Pellet

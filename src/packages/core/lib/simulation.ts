@@ -123,6 +123,43 @@ function wrapDelta(delta: number, width: number): number {
   return wrapped > width / 2 ? wrapped - width : wrapped;
 }
 
+type Point = { readonly x: number; readonly y: number };
+
+/** Squared distance from a point to the segment a-b. */
+function pointSegmentDistanceSq(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lengthSq = dx * dx + dy * dy;
+  const t =
+    lengthSq === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSq));
+  const cx = a.x + t * dx;
+  const cy = a.y + t * dy;
+  const ex = p.x - cx;
+  const ey = p.y - cy;
+  return ex * ex + ey * ey;
+}
+
+function segmentsIntersect(a: Point, b: Point, c: Point, d: Point): boolean {
+  const cross = (o: Point, p: Point, q: Point): number =>
+    (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
+  const d1 = cross(c, d, a);
+  const d2 = cross(c, d, b);
+  const d3 = cross(a, b, c);
+  const d4 = cross(a, b, d);
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+}
+
+/** Squared distance between two segments; 0 when they cross. */
+function segmentDistanceSq(a: Point, b: Point, c: Point, d: Point): number {
+  if (segmentsIntersect(a, b, c, d)) return 0;
+  return Math.min(
+    pointSegmentDistanceSq(a, c, d),
+    pointSegmentDistanceSq(b, c, d),
+    pointSegmentDistanceSq(c, a, b),
+    pointSegmentDistanceSq(d, a, b),
+  );
+}
+
 export function createSimulation(config: SimulationConfig): Simulation {
   const { maze } = config;
   const difficulty = config.difficulty ?? DEFAULT_DIFFICULTY;
@@ -157,6 +194,10 @@ export function createSimulation(config: SimulationConfig): Simulation {
   // The tiles this tick's movement touched, in order; Pellets are eaten after
   // the move finishes so a Level-clear reset never happens mid-movement.
   const traversed: GridPosition[] = [];
+
+  // Where PacMan and each Ghost started the tick, for swept collision.
+  let pacmanStart = { x: position.x, y: position.y };
+  let ghostStarts: Point[] = [];
 
   const atCenter = (): boolean => isCentered(position.x) && isCentered(position.y);
 
@@ -229,8 +270,10 @@ export function createSimulation(config: SimulationConfig): Simulation {
       if (frightenedTicks > 0) frightenedTicks -= 1;
       advanceSchedule();
       if (intent.desired !== null) next = intent.desired;
+      pacmanStart = { x: position.x, y: position.y };
       move();
       eatTraversed();
+      ghostStarts = ghosts.map((state) => ({ x: state.position.x, y: state.position.y }));
       updateGhosts(ghosts, {
         maze,
         pacman: { tile: currentTile(), direction },
@@ -293,13 +336,34 @@ export function createSimulation(config: SimulationConfig): Simulation {
     markGhostsForReversal(ghosts, true);
   }
 
-  /** Eats any Frightened Ghost overlapping PacMan, doubling the value each time. */
+  /**
+   * Eats any Frightened Ghost PacMan overlaps, doubling the value each time.
+   * The check sweeps both paths across the tick, so a fast PacMan or Ghost
+   * that crosses the other mid-tick still collides.
+   */
   function resolveGhostEats(): void {
-    for (const state of ghosts) {
+    const pacmanEnd = {
+      x: wrapDelta(position.x - pacmanStart.x, maze.width),
+      y: position.y - pacmanStart.y,
+    };
+    const origin = { x: 0, y: 0 };
+
+    for (let i = 0; i < ghosts.length; i += 1) {
+      const state = ghosts[i]!;
       if (state.mode !== "frightened") continue;
-      const dx = wrapDelta(state.position.x - position.x, maze.width);
-      const dy = state.position.y - position.y;
-      if (dx * dx + dy * dy > GHOST_EAT_DISTANCE_SQ) continue;
+
+      const start = ghostStarts[i] ?? state.position;
+      const ghostStart = {
+        x: wrapDelta(start.x - pacmanStart.x, maze.width),
+        y: start.y - pacmanStart.y,
+      };
+      const ghostEnd = {
+        x: wrapDelta(state.position.x - pacmanStart.x, maze.width),
+        y: state.position.y - pacmanStart.y,
+      };
+      if (segmentDistanceSq(origin, pacmanEnd, ghostStart, ghostEnd) > GHOST_EAT_DISTANCE_SQ) {
+        continue;
+      }
 
       score += frightenedGhostPoints(ghostChain);
       ghostChain += 1;

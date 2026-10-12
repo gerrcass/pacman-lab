@@ -19,10 +19,12 @@ export function wrapX(width: number, x: number): number {
   return ((x % width) + width) % width;
 }
 
-/** A tile the walker may occupy: corridors and the tiles carrying Pellets. */
-export function isWalkable(maze: Maze, x: number, y: number): boolean {
+/** A tile a walker may occupy: corridors and the tiles carrying Pellets. Eyes
+ * may also cross the house door. */
+export function isWalkable(maze: Maze, x: number, y: number, allowDoor = false): boolean {
   const type = tileAt(maze, wrapX(maze.width, x), y);
-  return type === "empty" || type === "pellet" || type === "powerPellet";
+  if (type === "empty" || type === "pellet" || type === "powerPellet") return true;
+  return allowDoor && type === "door";
 }
 
 /** The in-bounds tile nearest a continuous position, x wrapped around the tunnels. */
