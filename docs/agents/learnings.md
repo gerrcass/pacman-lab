@@ -6,7 +6,34 @@ about the game. Newest first.
 Add an entry when something teaches you how to run the workflow better: a bug in
 a skill, a tooling gap, a review finding that changed a rule, or a mistake worth
 not repeating. One short entry per event, with the issue or PR that acted on it.
-Run `/retro` at the end of a hard session and land its findings here.
+Run `/retro` at the end of a hard session and land its findings here. For the
+current evidence-capture recipe, see
+[evidence.md](./evidence.md); the capture entries below are the history of how
+it got there.
+
+## 2026-10-12 — PRs run the repo checks in CI
+
+The only workflow was `deploy.yml`, and it runs on push to `main` after merge,
+so `lint`, `test`, and `deps` never gated a pull request. Add
+`.github/workflows/ci.yml`, which runs `build`, `lint`, `test`, and `deps` on
+every PR. An un-gated repo is a standing missed opportunity, not a neutral
+default.
+
+## 2026-10-12 — The capture recipe is one doc, and Playwright has a launcher
+
+Eight dated entries below described how to record the game, and the environment
+note in `AGENTS.md` still sent the agent to the `:0` recorder, which captures a
+black screen. The working recipe now lives in
+[docs/agents/evidence.md](./evidence.md): headless Playwright with a fake clock,
+plus `tools/pw.sh`, which links the npx cache's `node_modules` beside the script
+so `import "playwright"` resolves. `npx --package=playwright node x.mjs` fails on
+npm 11 with `ERR_MODULE_NOT_FOUND`.
+
+## 2026-10-12 — Poll Greptile with `gh pr checks --watch`
+
+The greploop beat polled Greptile with a hand-rolled `for i in seq; sleep` loop,
+twice per PR, each capped at fifteen minutes. `gh pr checks <n> --watch` waits
+on the check natively and returns when it settles.
 
 ## 2026-10-12 — Capture transient canvas states with Playwright's clock
 

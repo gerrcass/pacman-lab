@@ -51,6 +51,20 @@ const GLYPHS: Readonly<Record<string, readonly string[]>> = {
   "!": [" # ", " # ", " # ", "   ", " # "],
 };
 
+/** True when the font has a glyph for `char`, case-insensitively. */
+function hasGlyph(char: string): boolean {
+  return GLYPHS[char.toUpperCase()] !== undefined;
+}
+
+/**
+ * The characters in `text` the font cannot draw. `drawText` renders an unknown
+ * character as a blank cell while still advancing the cursor, so text that is
+ * centered or measured wants this to be empty.
+ */
+export function missingGlyphs(text: string): string[] {
+  return [...new Set([...text].filter((char) => !hasGlyph(char)))];
+}
+
 export function textWidth(text: string, pixel: number): number {
   if (text.length === 0) return 0;
   return text.length * GLYPH_WIDTH * pixel + (text.length - 1) * GLYPH_SPACING * pixel;
