@@ -8,6 +8,24 @@ a skill, a tooling gap, a review finding that changed a rule, or a mistake worth
 not repeating. One short entry per event, with the issue or PR that acted on it.
 Run `/retro` at the end of a hard session and land its findings here.
 
+## 2026-10-11 — Detach background dev servers or the shell kills them
+
+`nohup npx vite ... &` launched through the agent's shell does not survive the
+tool call: one run hit the 120s command timeout and took the server with it,
+which then read as a Vite page error until a `ss -ltnp` check showed the port
+had no listener. Start background servers with
+`setsid nohup <cmd> > log 2>&1 < /dev/null &` and confirm the port answers
+before trusting it. PR #22.
+
+## 2026-10-11 — Capture the before from a detached worktree when main has no deps
+
+The main checkout here has no `node_modules`, so there is no "before" server.
+Add a detached worktree at `origin/main`
+(`git worktree add --detach /tmp/before origin/main`), symlink the branch's
+`node_modules` in, and run Vite on a spare port (not `5173` — another agent
+owns it). Capture before/after as PNGs and upload via catbox, since the
+bundled upload hosts are down (see above). PR #22.
+
 ## 2026-10-11 — `agent-browser` hangs here; fall back to the Chrome DevTools MCP
 
 In this environment `agent-browser open` (and `doctor`, `screenshot`,
