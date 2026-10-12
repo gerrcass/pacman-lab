@@ -1,6 +1,8 @@
-export { drawHud } from "./lib/drawHud";
+export { drawCrt, drawParticles } from "./lib/drawEffects";
+export type { Particle } from "./lib/drawEffects";
 export { drawFruit } from "./lib/drawFruit";
 export { drawGhosts } from "./lib/drawGhosts";
+export { drawHud } from "./lib/drawHud";
 export { drawMaze } from "./lib/drawMaze";
 export { drawPacman } from "./lib/drawPacman";
 export { drawPellets } from "./lib/drawPellets";

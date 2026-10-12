@@ -40,6 +40,11 @@ export type GameFlow = {
   snapshot(): FlowSnapshot;
 };
 
+/** Whether a tick moved the run onto the death screen: read from two snapshots. */
+export function enteredDeath(previous: FlowSnapshot | null, current: FlowSnapshot): boolean {
+  return current.board.state === "death" && previous?.board.state !== "death";
+}
+
 export type GameFlowConfig = {
   readonly simulation: Simulation;
   readonly highScore: HighScoreStore;

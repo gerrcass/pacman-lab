@@ -33,6 +33,8 @@ export type GameInput = {
   takePause(): boolean;
   /** True once per M press, for toggling mute. */
   takeMute(): boolean;
+  /** True once per C press, for toggling the CRT filter. */
+  takeCrt(): boolean;
 };
 
 const PAUSE_KEYS = new Set(["p", "escape"]);
@@ -40,6 +42,11 @@ const PAUSE_KEYS = new Set(["p", "escape"]);
 /** Whether a key toggles mute (M). */
 function isMuteKey(key: string): boolean {
   return key.toLowerCase() === "m";
+}
+
+/** Whether a key toggles the CRT filter (C). */
+function isCrtKey(key: string): boolean {
+  return key.toLowerCase() === "c";
 }
 
 export type TouchPoint = {
@@ -148,11 +155,12 @@ function pointFromPointerEvent(canvas: HTMLCanvasElement, event: PointerEvent): 
 
 /**
  * Maps the keyboard and, on touch devices, swipes and the on-screen d-pad to
- * intents. Arrow keys and WASD steer, Space or Enter starts a run, and P or
- * Escape toggles pause. On touch, a swipe or d-pad drag steers, and a tap
- * starts. Start and pause are latched and cleared when the caller takes them,
- * so a press between two frame ticks is never dropped. Touch wiring is skipped
- * entirely when `touch` is false, so pointer events are ignored there.
+ * intents. Arrow keys and WASD steer, Space or Enter starts a run, P or
+ * Escape toggles pause, and M and C toggle mute and the CRT filter. On touch, a
+ * swipe or d-pad drag steers, and a tap starts. Start, pause, mute and CRT are
+ * latched and cleared when the caller takes them, so a press between two frame
+ * ticks is never dropped. Touch wiring is skipped entirely when `touch` is
+ * false, so pointer events are ignored there.
  */
 export function createGameInput(
   target: Window,
@@ -164,6 +172,7 @@ export function createGameInput(
   let startLatched = false;
   let pauseLatched = false;
   let muteLatched = false;
+  let crtLatched = false;
 
   target.addEventListener("keydown", (event) => {
     // Ignore auto-repeat: a held key is one press, not a press every tick.
@@ -184,6 +193,12 @@ export function createGameInput(
     if (isMuteKey(event.key)) {
       event.preventDefault();
       muteLatched = true;
+      return;
+    }
+
+    if (isCrtKey(event.key)) {
+      event.preventDefault();
+      crtLatched = true;
       return;
     }
 
@@ -234,6 +249,11 @@ export function createGameInput(
     takeMute: () => {
       const pressed = muteLatched;
       muteLatched = false;
+      return pressed;
+    },
+    takeCrt: () => {
+      const pressed = crtLatched;
+      crtLatched = false;
       return pressed;
     },
   };

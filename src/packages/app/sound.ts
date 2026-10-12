@@ -1,5 +1,6 @@
 import type { GhostSnapshot, PelletMarker } from "../core";
 import type { AudioService } from "../audio";
+import { enteredDeath } from "./gameFlow";
 import type { FlowSnapshot } from "./gameFlow";
 
 /** The audio calls the sound driver makes; the rest of the service is unused here. */
@@ -87,7 +88,7 @@ export function createSoundDriver(sink: SoundSink): SoundDriver {
         for (let i = 0; i < ghostsEaten; i += 1) sink.playGhostEaten();
       }
 
-      if (board.state === "death" && lastBoard?.state !== "death") sink.playDeath();
+      if (enteredDeath(last, snapshot)) sink.playDeath();
 
       sink.setSiren(screen === "playing" ? 1 + Math.floor(eaten / PELLETS_PER_SIREN_STEP) : 0);
       previous = snapshot;

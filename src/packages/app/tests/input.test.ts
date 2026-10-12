@@ -172,6 +172,20 @@ describe("createGameInput", () => {
     expect(input.takeStart()).toBe(false);
   });
 
+  it("toggles the CRT filter from the C key", () => {
+    const target = fakeElement();
+    const input = createGameInput(
+      target as unknown as Window,
+      fakeCanvas() as unknown as HTMLCanvasElement,
+      false,
+      () => true,
+    );
+
+    target.dispatch("keydown", keyEvent("c"));
+    expect(input.takeCrt()).toBe(true);
+    expect(input.takeCrt()).toBe(false);
+  });
+
   it("ignores touch on a device without it", () => {
     const canvas = fakeCanvas();
     const input = createGameInput(
