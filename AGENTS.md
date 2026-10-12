@@ -36,15 +36,15 @@ ticket from the tracker and stops at the open PR. Repeat once per ticket.
 
 Ship-beat notes:
 
-- `/before-and-after` drives the `@vercel/before-and-after` CLI. `--markdown`
-  uploads the pair and prints a PR-ready table; it also accepts existing PNGs,
-  so evidence gathered while developing can be reused as-is.
+- `/before-and-after` drives the `@vercel/before-and-after` CLI. It accepts
+  existing PNGs, so evidence gathered while developing can be reused. Its
+  bundled upload hosts are down; the capture and upload recipe lives in
+  [docs/agents/evidence.md](./docs/agents/evidence.md).
 - In containers/VMs where Chrome fails with "No usable sandbox", set
   `AGENT_BROWSER_ARGS="--no-sandbox"` for the capture command.
-- The default upload host (0x0.st) is public, fine for ordinary UI shots; pass
-  `--upload-url` for anything sensitive.
 - Greptile is already onboarded for this repo (org `gerrcass`); `greptile
-  review` works locally from the current branch.
+  review` works locally from the current branch. Poll it with
+  `gh pr checks <n> --watch` rather than a hand-rolled sleep loop.
 
 ## Writing for humans
 
@@ -122,16 +122,12 @@ before you change a skill or the workflow.
   sequence. The core has no DOM or Canvas imports, and the render layer does not
   reach into the core's internals; `npm run deps` enforces the imports and
   ESLint bans DOM globals inside `core`. Never commit to `main`.
-- **Environment quick reference.** Node 22 and npm 11 are present. X11 display
-  `:0` with the ffmpeg toolchain, so the `/evidence-driven-testing` recorder
-  captures the screen (`evidence.py doctor` reports ready). Playwright chromium
-  is cached; the Chrome DevTools MCP and `agent-browser` drive the browser. The
-  Vite dev server serves on `http://localhost:5173`. The evidence recorder
-  captures the X11 display, so drive the browser headed on `:0`; with no display
-  use the Playwright headless path.
-- **Local test infrastructure.** Vitest for the simulation core; recorded
-  evidence for the rendered game. Playwright drives the headless path when no
-  display is available.
+- **Environment quick reference.** Node 22 and npm 11 are present; `rg` is
+  installed. Vite serves on `http://localhost:5173`. No window maps to `:0`
+  and `agent-browser` hangs, so capture evidence with the headless Playwright
+  recipe in [docs/agents/evidence.md](./docs/agents/evidence.md).
+- **Local test infrastructure.** Vitest for the simulation core; rendered
+  behavior goes through recorded evidence, not DOM tests.
 
 ## Agent skills
 

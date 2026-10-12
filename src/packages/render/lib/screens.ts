@@ -7,6 +7,31 @@ import type { Viewport } from "./viewport";
 
 const CENTER_X = VIRTUAL_WIDTH / 2;
 
+const WORDMARK_TEXT = "PAC-MAN";
+const PROMPT_TEXT = "PRESS SPACE";
+const READY_TEXT = "READY!";
+const PAUSED_TEXT = "PAUSED";
+const LEVEL_CLEAR_TEXT = "LEVEL CLEAR";
+const GAME_OVER_TEXT = "GAME OVER";
+const SCORE_LABEL = "SCORE";
+const HIGH_SCORE_LABEL = "HIGH SCORE";
+
+/**
+ * Every static label the screens draw. The font test checks each one against
+ * the glyph table, so a new screen with an unmapped character fails the test
+ * instead of drawing a blank cell.
+ */
+export const SCREEN_LABELS = [
+  WORDMARK_TEXT,
+  PROMPT_TEXT,
+  READY_TEXT,
+  PAUSED_TEXT,
+  LEVEL_CLEAR_TEXT,
+  GAME_OVER_TEXT,
+  SCORE_LABEL,
+  HIGH_SCORE_LABEL,
+];
+
 const WORDMARK: FontStyle = { pixel: 5, color: COLORS.pacman };
 const PROMPT: FontStyle = { pixel: 2, color: COLORS.hud };
 const BANNER: FontStyle = { pixel: 3, color: COLORS.pacman };
@@ -24,7 +49,7 @@ function clearCanvas(ctx: CanvasRenderingContext2D): void {
 export function drawBoot(ctx: CanvasRenderingContext2D, viewport: Viewport): void {
   clearCanvas(ctx);
   applyPixelTransform(ctx, viewport);
-  drawTextCentered(ctx, "PAC-MAN", CENTER_X, 130, WORDMARK);
+  drawTextCentered(ctx, WORDMARK_TEXT, CENTER_X, 130, WORDMARK);
 }
 
 /** The title screen: the wordmark, the start prompt, and the high score. */
@@ -34,27 +59,27 @@ export function drawTitle(
   highScore: number,
 ): void {
   applyPixelTransform(ctx, viewport);
-  drawTextCentered(ctx, "PAC-MAN", CENTER_X, 96, WORDMARK);
-  drawTextCentered(ctx, "PRESS SPACE", CENTER_X, 168, PROMPT);
-  drawTextCentered(ctx, `HIGH SCORE ${padNumber(highScore, 6)}`, CENTER_X, 196, PROMPT);
+  drawTextCentered(ctx, WORDMARK_TEXT, CENTER_X, 96, WORDMARK);
+  drawTextCentered(ctx, PROMPT_TEXT, CENTER_X, 168, PROMPT);
+  drawTextCentered(ctx, `${HIGH_SCORE_LABEL} ${padNumber(highScore, 6)}`, CENTER_X, 196, PROMPT);
 }
 
 /** The READY prompt shown in the Maze before each Level. */
 export function drawReady(ctx: CanvasRenderingContext2D, viewport: Viewport): void {
   applyPixelTransform(ctx, viewport);
-  drawTextCentered(ctx, "READY!", CENTER_X, 160, BANNER);
+  drawTextCentered(ctx, READY_TEXT, CENTER_X, 160, BANNER);
 }
 
 /** The PAUSED banner shown over a frozen board. */
 export function drawPaused(ctx: CanvasRenderingContext2D, viewport: Viewport): void {
   applyPixelTransform(ctx, viewport);
-  drawTextCentered(ctx, "PAUSED", CENTER_X, 148, OVERLAY);
+  drawTextCentered(ctx, PAUSED_TEXT, CENTER_X, 148, OVERLAY);
 }
 
 /** The LEVEL CLEAR banner shown over the emptied Maze between Levels. */
 export function drawLevelClear(ctx: CanvasRenderingContext2D, viewport: Viewport): void {
   applyPixelTransform(ctx, viewport);
-  drawTextCentered(ctx, "LEVEL CLEAR", CENTER_X, 148, BANNER);
+  drawTextCentered(ctx, LEVEL_CLEAR_TEXT, CENTER_X, 148, BANNER);
 }
 
 /** The game over screen: the run score and the persisted high score. */
@@ -65,9 +90,15 @@ export function drawGameOver(
   highScore: number,
 ): void {
   applyPixelTransform(ctx, viewport);
-  drawTextCentered(ctx, "GAME OVER", CENTER_X, 120, GAME_OVER);
-  drawTextCentered(ctx, `SCORE ${padNumber(score, 6)}`, CENTER_X, 168, GAME_OVER_DETAIL);
-  drawTextCentered(ctx, `HIGH SCORE ${padNumber(highScore, 6)}`, CENTER_X, 188, GAME_OVER_DETAIL);
+  drawTextCentered(ctx, GAME_OVER_TEXT, CENTER_X, 120, GAME_OVER);
+  drawTextCentered(ctx, `${SCORE_LABEL} ${padNumber(score, 6)}`, CENTER_X, 168, GAME_OVER_DETAIL);
+  drawTextCentered(
+    ctx,
+    `${HIGH_SCORE_LABEL} ${padNumber(highScore, 6)}`,
+    CENTER_X,
+    188,
+    GAME_OVER_DETAIL,
+  );
 }
 
 /**
