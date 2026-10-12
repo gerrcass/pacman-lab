@@ -1,35 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { dpadDirectionAt, dpadLayout, insideDpad } from "../index";
+import { DPAD_LAYOUT, dpadDirectionAt, insideDpad } from "../index";
 
 describe("d-pad layout", () => {
-  it("sits inside the canvas, in the bottom-left corner", () => {
-    const layout = dpadLayout(720, 900);
-    expect(insideDpad(layout.cx, layout.cy, layout)).toBe(true);
-    expect(layout.cx - layout.halfSize).toBeGreaterThanOrEqual(0);
-    expect(layout.cy + layout.halfSize).toBeLessThanOrEqual(900);
-  });
-
-  it("grows with the canvas but stays within its bounds", () => {
-    expect(dpadLayout(720, 900).halfSize).toBeGreaterThan(dpadLayout(360, 450).halfSize);
-    expect(dpadLayout(4000, 4000).halfSize * 2).toBeLessThanOrEqual(300);
+  it("sits on the virtual grid with its square inside the canvas", () => {
+    expect(insideDpad(DPAD_LAYOUT.cx, DPAD_LAYOUT.cy, DPAD_LAYOUT)).toBe(true);
+    expect(DPAD_LAYOUT.cx - DPAD_LAYOUT.halfSize).toBeGreaterThanOrEqual(0);
+    expect(DPAD_LAYOUT.cy + DPAD_LAYOUT.halfSize).toBeLessThanOrEqual(288);
   });
 });
 
 describe("d-pad direction", () => {
-  const layout = dpadLayout(720, 900);
+  const { cx, cy, halfSize } = DPAD_LAYOUT;
   const at = (dx: number, dy: number): ReturnType<typeof dpadDirectionAt> =>
-    dpadDirectionAt(layout.cx + dx, layout.cy + dy, layout);
+    dpadDirectionAt(cx + dx, cy + dy, DPAD_LAYOUT);
 
   it("maps each arm to its direction", () => {
-    expect(at(0, -layout.halfSize)).toBe("up");
-    expect(at(0, layout.halfSize)).toBe("down");
-    expect(at(-layout.halfSize, 0)).toBe("left");
-    expect(at(layout.halfSize, 0)).toBe("right");
+    expect(at(0, -halfSize)).toBe("up");
+    expect(at(0, halfSize)).toBe("down");
+    expect(at(-halfSize, 0)).toBe("left");
+    expect(at(halfSize, 0)).toBe("right");
   });
 
   it("steers the dominant axis on a diagonal press", () => {
-    expect(at(layout.halfSize, layout.halfSize * 0.5)).toBe("right");
-    expect(at(layout.halfSize * 0.5, layout.halfSize)).toBe("down");
+    expect(at(halfSize, halfSize * 0.5)).toBe("right");
+    expect(at(halfSize * 0.5, halfSize)).toBe("down");
   });
 
   it("returns null in the dead zone at the centre", () => {
@@ -37,6 +31,6 @@ describe("d-pad direction", () => {
   });
 
   it("returns null off the pad", () => {
-    expect(dpadDirectionAt(0, 0, layout)).toBeNull();
+    expect(dpadDirectionAt(0, 0, DPAD_LAYOUT)).toBeNull();
   });
 });

@@ -1,6 +1,10 @@
+import { directionFromDelta } from "../../core";
 import type { Direction } from "../../core";
+import { VIRTUAL_HEIGHT } from "./constants";
+import { applyPixelTransform } from "./transform";
+import type { Viewport } from "./viewport";
 
-/** The on-screen d-pad's geometry, in canvas backing pixels. */
+/** The d-pad's geometry on the 224x288 virtual grid. */
 export type DpadLayout = {
   readonly cx: number;
   readonly cy: number;
@@ -8,35 +12,24 @@ export type DpadLayout = {
   readonly thickness: number;
 };
 
-const MIN_SIZE = 112;
-const MAX_SIZE = 300;
-const SIZE_FRACTION = 0.34;
-const MARGIN_FRACTION = 0.2;
-const THICKNESS_FRACTION = 0.34;
+const HALF_SIZE = 26;
+const MARGIN = 10;
+const THICKNESS = 16;
 /** The centre fraction of the pad that reads as no direction. */
 const DEAD_ZONE = 0.22;
 
-const PAD_FILL = "rgba(255, 255, 255, 0.14)";
-const PAD_EDGE = "rgba(255, 255, 255, 0.3)";
-const ARROW_FILL = "rgba(255, 255, 255, 0.78)";
+/** The pad sits in the bottom-left, clear of the life row along the bottom. */
+export const DPAD_LAYOUT: DpadLayout = {
+  cx: MARGIN + HALF_SIZE,
+  cy: VIRTUAL_HEIGHT - MARGIN - HALF_SIZE,
+  halfSize: HALF_SIZE,
+  thickness: THICKNESS,
+};
 
-/**
- * Places the d-pad in the bottom-left corner, sized from the shorter canvas
- * axis and clamped so it stays thumb-sized on a phone and sane on a desktop.
- */
-export function dpadLayout(width: number, height: number): DpadLayout {
-  const size = Math.min(MAX_SIZE, Math.max(MIN_SIZE, Math.min(width, height) * SIZE_FRACTION));
-  const halfSize = size / 2;
-  const margin = size * MARGIN_FRACTION;
-  return {
-    cx: margin + halfSize,
-    cy: height - margin - halfSize,
-    halfSize,
-    thickness: size * THICKNESS_FRACTION,
-  };
-}
+const PAD_FILL = "rgba(255, 255, 255, 0.16)";
+const ARROW_FILL = "rgba(255, 255, 255, 0.72)";
 
-/** Whether a point lands on the pad's square hit area. */
+/** Whether a point on the virtual grid lands on the pad's square hit area. */
 export function insideDpad(x: number, y: number, layout: DpadLayout): boolean {
   return Math.abs(x - layout.cx) <= layout.halfSize && Math.abs(y - layout.cy) <= layout.halfSize;
 }
@@ -47,79 +40,64 @@ export function insideDpad(x: number, y: number, layout: DpadLayout): boolean {
  */
 export function dpadDirectionAt(x: number, y: number, layout: DpadLayout): Direction | null {
   if (!insideDpad(x, y, layout)) return null;
-
-  const dx = x - layout.cx;
-  const dy = y - layout.cy;
-  if (Math.max(Math.abs(dx), Math.abs(dy)) < layout.halfSize * DEAD_ZONE) return null;
-
-  if (Math.abs(dx) >= Math.abs(dy)) return dx > 0 ? "right" : "left";
-  return dy > 0 ? "down" : "up";
+  return directionFromDelta(x - layout.cx, y - layout.cy, layout.halfSize * DEAD_ZONE);
 }
 
+/** One blocky arrowhead, built from rows so it stays crisp pixel art. */
 function drawArrow(
   ctx: CanvasRenderingContext2D,
   cx: number,
   cy: number,
   direction: Direction,
-  size: number,
+  inner: number,
+  outer: number,
+  halfWidth: number,
 ): void {
-  const w = size * 0.9;
-  ctx.beginPath();
-  switch (direction) {
-    case "up":
-      ctx.moveTo(cx, cy - size);
-      ctx.lineTo(cx - w, cy + size * 0.7);
-      ctx.lineTo(cx + w, cy + size * 0.7);
-      break;
-    case "down":
-      ctx.moveTo(cx, cy + size);
-      ctx.lineTo(cx - w, cy - size * 0.7);
-      ctx.lineTo(cx + w, cy - size * 0.7);
-      break;
-    case "left":
-      ctx.moveTo(cx - size, cy);
-      ctx.lineTo(cx + size * 0.7, cy - w);
-      ctx.lineTo(cx + size * 0.7, cy + w);
-      break;
-    case "right":
-      ctx.moveTo(cx + size, cy);
-      ctx.lineTo(cx - size * 0.7, cy - w);
-      ctx.lineTo(cx - size * 0.7, cy + w);
-      break;
+  for (let d = inner; d <= outer; d += 1) {
+    const half = Math.round((halfWidth * (outer - d)) / (outer - inner));
+    const width = half * 2 + 1;
+    switch (direction) {
+      case "up":
+        ctx.fillRect(cx - half, cy - d, width, 1);
+        break;
+      case "down":
+        ctx.fillRect(cx - half, cy + d, width, 1);
+        break;
+      case "left":
+        ctx.fillRect(cx - d, cy - half, 1, width);
+        break;
+      case "right":
+        ctx.fillRect(cx + d, cy - half, 1, width);
+        break;
+    }
   }
-  ctx.closePath();
-  ctx.fill();
 }
 
 /**
- * Draws the translucent d-pad in screen pixels, over the scaled Maze. A plus
- * of two bars with an arrow on each arm, so the touch target reads as a
- * direction control rather than part of the board.
+ * Draws the translucent d-pad over the Maze, snapped to the same virtual pixel
+ * grid as the rest of the game so it stays crisp at any integer scale. A plus
+ * of two bars with a blocky arrow on each arm.
  */
-export function drawTouchControls(ctx: CanvasRenderingContext2D, layout: DpadLayout): void {
+export function drawTouchControls(
+  ctx: CanvasRenderingContext2D,
+  viewport: Viewport,
+  layout: DpadLayout,
+): void {
+  applyPixelTransform(ctx, viewport);
+
   const { cx, cy, halfSize, thickness } = layout;
   const half = thickness / 2;
-
-  ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.imageSmoothingEnabled = false;
 
   ctx.fillStyle = PAD_FILL;
   ctx.fillRect(cx - half, cy - halfSize, thickness, halfSize * 2);
   ctx.fillRect(cx - halfSize, cy - half, halfSize * 2, thickness);
 
-  ctx.strokeStyle = PAD_EDGE;
-  ctx.lineWidth = Math.max(1, halfSize * 0.06);
-  ctx.strokeRect(cx - half, cy - halfSize, thickness, halfSize * 2);
-  ctx.strokeRect(cx - halfSize, cy - half, halfSize * 2, thickness);
-
   ctx.fillStyle = ARROW_FILL;
-  const arrow = halfSize * 0.3;
-  const arm = halfSize * 0.62;
-  drawArrow(ctx, cx, cy - arm, "up", arrow);
-  drawArrow(ctx, cx, cy + arm, "down", arrow);
-  drawArrow(ctx, cx - arm, cy, "left", arrow);
-  drawArrow(ctx, cx + arm, cy, "right", arrow);
-
-  ctx.restore();
+  const inner = Math.round(halfSize * 0.42);
+  const outer = Math.round(halfSize * 0.86);
+  const halfWidth = Math.max(2, Math.round(halfSize * 0.26));
+  drawArrow(ctx, cx, cy, "up", inner, outer, halfWidth);
+  drawArrow(ctx, cx, cy, "down", inner, outer, halfWidth);
+  drawArrow(ctx, cx, cy, "left", inner, outer, halfWidth);
+  drawArrow(ctx, cx, cy, "right", inner, outer, halfWidth);
 }

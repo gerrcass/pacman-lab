@@ -4,6 +4,7 @@ export { CLASSIC_MAZE_ROWS, MAZE_COLUMNS, MAZE_ROWS, parseMaze, tileAt } from ".
 export type { GridPosition, Maze, Tile, TileType } from "./lib/maze";
 
 export type { Direction } from "./lib/direction";
+export { directionFromDelta } from "./lib/direction";
 
 export { createSimulation } from "./lib/simulation";
 export type {

@@ -17,7 +17,7 @@ import {
   drawTitle,
   drawTouchControls,
   drawTransition,
-  dpadLayout,
+  DPAD_LAYOUT,
   fitViewport,
 } from "../../render";
 import { createGameFlow } from "../gameFlow";
@@ -41,7 +41,7 @@ export function createGame(canvas: HTMLCanvasElement): void {
   }
 
   const touch = navigator.maxTouchPoints > 0;
-  const input = createGameInput(window, canvas, { touch });
+  const input = createGameInput(window, canvas, touch);
   const simulation = createSimulation({ maze: CLASSIC_MAZE, seed: 1 });
   const flow = createGameFlow({ simulation, highScore: createLocalStorageHighScore() });
   const audio = createAudio();
@@ -98,9 +98,9 @@ export function createGame(canvas: HTMLCanvasElement): void {
         break;
     }
 
-    // The d-pad is a control for the playable board, not another screen.
+    // The d-pad is a control for the Maze, drawn over it, not another screen.
     if (touch && showsActors(screen)) {
-      drawTouchControls(ctx, dpadLayout(canvas.width, canvas.height));
+      drawTouchControls(ctx, viewport, DPAD_LAYOUT);
     }
 
     drawTransition(ctx, transition);
