@@ -70,6 +70,76 @@ export function ghostReleasePellets(): Readonly<Record<HouseGhostId, number>> {
   return { pinky: 0, inky: 30, clyde: 60 };
 }
 
+/** How an eaten Ghost's eyes get back to the house: the door tile above the
+ * house it aims for, then the tiles it walks down to its home. Blinky lives
+ * above the door, so his route is empty and he rejoins on the grid. */
+export type GhostReturn = {
+  readonly entrance: GridPosition;
+  readonly route: readonly GridPosition[];
+};
+
+export const GHOST_RETURN_ROUTES: Readonly<Record<GhostId, GhostReturn>> = {
+  blinky: { entrance: { x: 13, y: 11 }, route: [] },
+  pinky: {
+    entrance: { x: 13, y: 11 },
+    route: [
+      { x: 13, y: 12 },
+      { x: 13, y: 13 },
+      { x: 13, y: 14 },
+    ],
+  },
+  inky: {
+    entrance: { x: 13, y: 11 },
+    route: [
+      { x: 13, y: 12 },
+      { x: 13, y: 13 },
+      { x: 13, y: 14 },
+      { x: 12, y: 14 },
+      { x: 11, y: 14 },
+    ],
+  },
+  clyde: {
+    entrance: { x: 14, y: 11 },
+    route: [
+      { x: 14, y: 12 },
+      { x: 14, y: 13 },
+      { x: 14, y: 14 },
+      { x: 15, y: 14 },
+      { x: 16, y: 14 },
+    ],
+  },
+};
+
+/**
+ * Arcade Frightened durations in seconds by Level. The timer is per Power
+ * Pellet, not per Level; later Levels shrink it, and 0 means a Power Pellet
+ * buys no Frightened time at all.
+ */
+const FRIGHTENED_SECONDS: readonly number[] = [
+  6, 5, 4, 3, 2, 5, 2, 2, 1, 5, 2, 1, 1, 3, 1, 1, 0, 1, 0, 0, 0,
+];
+
+/** How long Frightened lasts on a Level, in fixed ticks. */
+export function frightenedTicksForLevel(level: number): number {
+  const index = Math.min(Math.max(level, 1), FRIGHTENED_SECONDS.length) - 1;
+  return seconds(FRIGHTENED_SECONDS[index] ?? 0);
+}
+
+/** The doubling value of each Ghost eaten in a single Frightened stretch. */
+export function frightenedGhostPoints(chain: number): number {
+  return Math.min(200 * 2 ** chain, 1600);
+}
+
+/** Frightened Ghosts crawl at half the arcade's full speed. */
+export function frightenedTilesPerTick(pacmanTilesPerTick: number): number {
+  return (pacmanTilesPerTick / 0.8) * 0.5;
+}
+
+/** A Ghost's eyes race home at the arcade's full speed. */
+export function eyesTilesPerTick(pacmanTilesPerTick: number): number {
+  return pacmanTilesPerTick / 0.8;
+}
+
 /**
  * The arcade Scatter/Chase schedule, in ticks. Every Level has the same shape;
  * the differences are the Scatter length (7s, or 5s from level 5), the long

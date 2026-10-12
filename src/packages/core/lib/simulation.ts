@@ -14,8 +14,13 @@ import { createGhostStates, markGhostsForReversal, updateGhosts } from "./ghosts
 import type { GhostState } from "./ghosts";
 import { createPelletBoard } from "./pellets";
 import type { PelletMarker } from "./pellets";
+import { createRng } from "./rng";
 import {
   CLASSIC_GHOST_STARTS,
+  eyesTilesPerTick,
+  frightenedGhostPoints,
+  frightenedTilesPerTick,
+  frightenedTicksForLevel,
   ghostReleasePellets,
   ghostTilesPerTick,
   scatterChaseSchedule,
@@ -45,7 +50,7 @@ export type GhostSnapshot = {
   /** Continuous position in tile units, for smooth rendering. */
   readonly position: GridPosition;
   readonly direction: Direction;
-  /** Ticks of Frightened left; always 0 until Power Pellets arrive. */
+  /** Ticks of Frightened left, or 0 when the Ghost is not Frightened. */
   readonly frightenedTicksLeft: number;
 };
 
@@ -77,6 +82,8 @@ export type GhostConfig = {
   readonly releasePellets?: Readonly<Record<HouseGhostId, number>>;
   /** Overrides the per-Level Scatter/Chase schedule. */
   readonly schedule?: readonly GhostPhase[];
+  /** Starts the Frightened timer, for tests and difficulty experiments. */
+  readonly frightenedTicks?: number;
 };
 
 export type SimulationConfig = {
@@ -100,10 +107,21 @@ export const DEFAULT_DIFFICULTY: Difficulty = {
   pacmanTilesPerTick: 1 / 8,
 };
 
+/** How close PacMan must be to overlap a Ghost, in tiles. */
+const GHOST_EAT_DISTANCE = 0.5;
+const GHOST_EAT_DISTANCE_SQ = GHOST_EAT_DISTANCE * GHOST_EAT_DISTANCE;
+
+/** The signed distance between two x coordinates, taking the tunnel into account. */
+function wrapDelta(delta: number, width: number): number {
+  const wrapped = ((delta % width) + width) % width;
+  return wrapped > width / 2 ? wrapped - width : wrapped;
+}
+
 export function createSimulation(config: SimulationConfig): Simulation {
   const { maze } = config;
   const difficulty = config.difficulty ?? DEFAULT_DIFFICULTY;
   const speed = difficulty.pacmanTilesPerTick;
+  const rng = createRng(config.seed);
 
   const starts = config.ghosts?.starts ?? CLASSIC_GHOST_STARTS;
   const releasePellets = config.ghosts?.releasePellets ?? ghostReleasePellets();
@@ -122,6 +140,10 @@ export function createSimulation(config: SimulationConfig): Simulation {
 
   let ghosts: GhostState[] = createGhostStates(starts);
   let ghostSpeed = ghostTilesPerTick(level, speed);
+  const frightenedSpeed = frightenedTilesPerTick(speed);
+  const eyesSpeed = eyesTilesPerTick(speed);
+  let frightenedTicks = config.ghosts?.frightenedTicks ?? 0;
+  let ghostChain = 0;
   let schedule: readonly GhostPhase[] = scheduleFor(level);
   let phaseIndex = 0;
   let phaseTicks = 0;
@@ -207,9 +229,15 @@ export function createSimulation(config: SimulationConfig): Simulation {
         pacman: { tile: currentTile(), direction },
         globalMode: currentGlobalMode(),
         speed: ghostSpeed,
+        frightenedSpeed,
+        eyesSpeed,
+        frightenedTicksLeft: frightenedTicks,
+        rng,
         pelletsEaten,
         releasePellets,
       });
+      resolveGhostEats();
+      if (frightenedTicks > 0) frightenedTicks -= 1;
     },
 
     snapshot(): Snapshot {
@@ -225,14 +253,18 @@ export function createSimulation(config: SimulationConfig): Simulation {
           direction,
           next,
         },
-        ghosts: ghosts.map((state) => ({
-          id: state.id,
-          mode: state.mode,
-          tile: centeredTile(state.position, maze.width),
-          position: { x: state.position.x, y: state.position.y },
-          direction: state.direction,
-          frightenedTicksLeft: 0,
-        })),
+        ghosts: ghosts.map((state) => {
+          const frightened =
+            frightenedTicks > 0 && !state.frightenedImmune && state.mode !== "eaten";
+          return {
+            id: state.id,
+            mode: frightened ? "frightened" : state.mode,
+            tile: centeredTile(state.position, maze.width),
+            position: { x: state.position.x, y: state.position.y },
+            direction: state.direction,
+            frightenedTicksLeft: frightened ? frightenedTicks : 0,
+          };
+        }),
       };
     },
   };
@@ -247,6 +279,35 @@ export function createSimulation(config: SimulationConfig): Simulation {
         advanceLevel();
         return;
       }
+      if (consumed.kind === "powerPellet") beginFrightened();
+    }
+  }
+
+  /** A Power Pellet reverses every Ghost on the grid and starts the timer. */
+  function beginFrightened(): void {
+    frightenedTicks = frightenedTicksForLevel(level);
+    ghostChain = 0;
+    for (const state of ghosts) state.frightenedImmune = false;
+    markGhostsForReversal(ghosts, true);
+  }
+
+  /** Eats any Frightened Ghost overlapping PacMan, doubling the value each time. */
+  function resolveGhostEats(): void {
+    for (const state of ghosts) {
+      if (state.mode !== "frightened") continue;
+      const dx = wrapDelta(state.position.x - position.x, maze.width);
+      const dy = state.position.y - position.y;
+      if (dx * dx + dy * dy > GHOST_EAT_DISTANCE_SQ) continue;
+
+      score += frightenedGhostPoints(ghostChain);
+      ghostChain += 1;
+      state.mode = "eaten";
+      state.returning = false;
+      state.frightenedImmune = true;
+      state.leaving = false;
+      state.route = [];
+      state.exitTile = null;
+      state.pendingReverse = false;
     }
   }
 
@@ -254,6 +315,8 @@ export function createSimulation(config: SimulationConfig): Simulation {
     level += 1;
     pellets.reset();
     pelletsEaten = 0;
+    frightenedTicks = 0;
+    ghostChain = 0;
     position.x = maze.pacmanStart.x;
     position.y = maze.pacmanStart.y;
     direction = "left";

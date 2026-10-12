@@ -19,6 +19,7 @@ export type {
 export type { PelletKind, PelletMarker } from "./lib/pellets";
 
 export { ghostReleasePellets, ghostTilesPerTick, scatterChaseSchedule } from "./lib/tuning";
+export { frightenedGhostPoints, frightenedTicksForLevel } from "./lib/tuning";
 export type {
   GhostId,
   GhostMode,
