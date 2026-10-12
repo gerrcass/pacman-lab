@@ -105,6 +105,16 @@ describe("pellet accounting", () => {
     expect(snap.score).toBe(30);
     expect(snap.pelletsRemaining).toBe(24);
   });
+
+  it("does not eat a Pellet until PacMan reaches its center", () => {
+    const sim = simOn(pelletedCorridor());
+    // Seven ticks in, PacMan's leading tile is 12 but his center has not arrived.
+    drive(sim, 7, null);
+    expect(sim.snapshot().score).toBe(0);
+    expect(sim.snapshot().pelletsRemaining).toBe(27);
+    drive(sim, 1, null);
+    expect(sim.snapshot().score).toBe(10);
+  });
 });
 
 describe("level clear", () => {
@@ -122,7 +132,7 @@ describe("level clear", () => {
 
   it("advances the Level and resets the Maze once the last Pellet is eaten", () => {
     const sim = simOn(twoPellets());
-    drive(sim, 9, null);
+    drive(sim, 16, null);
     const snap = sim.snapshot();
     expect(snap.level).toBe(2);
     expect(snap.pelletsRemaining).toBe(2);
@@ -131,7 +141,7 @@ describe("level clear", () => {
 
   it("returns PacMan to the start of the fresh Maze", () => {
     const sim = simOn(twoPellets());
-    drive(sim, 9, null);
+    drive(sim, 16, null);
     const snap = sim.snapshot();
     expect(snap.pacman.tile).toEqual({ x: 13, y: CORRIDOR_ROW });
     expect(snap.pacman.direction).toBe("left");
@@ -140,7 +150,7 @@ describe("level clear", () => {
 
   it("resets the remaining Pellet tiles to the full Maze", () => {
     const sim = simOn(twoPellets());
-    drive(sim, 9, null);
+    drive(sim, 16, null);
     const snap: Snapshot = sim.snapshot();
     expect(snap.pellets).toHaveLength(2);
     expect(snap.pellets).toContainEqual({ tile: { x: 11, y: CORRIDOR_ROW }, kind: "pellet" });

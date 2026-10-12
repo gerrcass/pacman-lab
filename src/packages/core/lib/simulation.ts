@@ -97,8 +97,9 @@ export function createSimulation(config: SimulationConfig): Simulation {
     y: isCentered(position.y) ? Math.round(position.y) : Math.floor(position.y),
   });
 
-  /** Notes the tile PacMan now occupies, skipping a repeat of the previous one. */
+  /** Notes the tile center PacMan has reached, skipping a repeat of the previous one. */
   const recordTile = (): void => {
+    if (!atCenter()) return;
     const tile = currentTile();
     const last = traversed[traversed.length - 1];
     if (last === undefined || last.x !== tile.x || last.y !== tile.y) traversed.push(tile);
@@ -152,7 +153,7 @@ export function createSimulation(config: SimulationConfig): Simulation {
       if (budget <= EPSILON) break;
     }
 
-    // The leading tile entered by this tick's last partial step.
+    // A tick that ends exactly on a center still counts as reaching it.
     recordTile();
   };
 
