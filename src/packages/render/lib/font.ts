@@ -55,6 +55,17 @@ export function textWidth(text: string, pixel: number): number {
   return text.length * GLYPH_WIDTH * pixel + (text.length - 1) * GLYPH_SPACING * pixel;
 }
 
+/** Draws `text` centered on `centerX`, one 3x5 glyph per character. */
+export function drawTextCentered(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  centerX: number,
+  y: number,
+  style: FontStyle,
+): void {
+  drawText(ctx, text, centerX - textWidth(text, style.pixel) / 2, y, style);
+}
+
 /** Draws `text` in the current transform, one 3x5 glyph per character. */
 export function drawText(
   ctx: CanvasRenderingContext2D,

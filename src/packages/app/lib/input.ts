@@ -1,6 +1,6 @@
 import type { Direction } from "../../core";
 
-const KEYS: Readonly<Record<string, Direction>> = {
+const DIRECTION_KEYS: Readonly<Record<string, Direction>> = {
   arrowup: "up",
   arrowdown: "down",
   arrowleft: "left",
@@ -12,24 +12,41 @@ const KEYS: Readonly<Record<string, Direction>> = {
 };
 
 export function directionForKey(key: string): Direction | null {
-  return KEYS[key.toLowerCase()] ?? null;
+  return DIRECTION_KEYS[key.toLowerCase()] ?? null;
 }
 
-export type DirectionInput = {
+export type GameInput = {
+  /** The latest direction pressed, or null if no direction has been pressed. */
   desired(): Direction | null;
   /** True once per Space or Enter press, for starting or restarting a run. */
-  consumeStart(): boolean;
+  takeStart(): boolean;
+  /** True once per P or Escape press, for toggling pause. */
+  takePause(): boolean;
 };
 
-/** Arrow keys and WASD steer PacMan; the latest direction pressed is the intent. */
-export function createDirectionInput(target: Window): DirectionInput {
+const PAUSE_KEYS = new Set(["p", "escape"]);
+
+/**
+ * Maps the keyboard to intents: arrow keys and WASD steer, Space or Enter
+ * starts a run, and P or Escape toggles pause. Start and pause are latched on
+ * keydown and cleared when the caller takes them, so a press between two frame
+ * ticks is never dropped.
+ */
+export function createGameInput(target: Window): GameInput {
   let desired: Direction | null = null;
-  let startPressed = false;
+  let startLatched = false;
+  let pauseLatched = false;
 
   target.addEventListener("keydown", (event) => {
     if (event.key === " " || event.key === "Enter") {
       event.preventDefault();
-      startPressed = true;
+      startLatched = true;
+      return;
+    }
+
+    if (PAUSE_KEYS.has(event.key.toLowerCase())) {
+      event.preventDefault();
+      pauseLatched = true;
       return;
     }
 
@@ -41,9 +58,14 @@ export function createDirectionInput(target: Window): DirectionInput {
 
   return {
     desired: () => desired,
-    consumeStart: () => {
-      const pressed = startPressed;
-      startPressed = false;
+    takeStart: () => {
+      const pressed = startLatched;
+      startLatched = false;
+      return pressed;
+    },
+    takePause: () => {
+      const pressed = pauseLatched;
+      pauseLatched = false;
       return pressed;
     },
   };
