@@ -57,12 +57,17 @@ export function createFruitBoard(config: FruitConfig = {}): FruitBoard {
     active: () => fruit,
 
     maybeSpawn(level, pelletsEaten) {
-      if (nextSpawn >= spawnPellets.length) return;
-      if (pelletsEaten < spawnPellets[nextSpawn]!) return;
-      nextSpawn += 1;
-      if (fruit !== null) return;
-      const spec = fruitForLevel(level);
-      fruit = { kind: spec.kind, tile: spawnTile, points: spec.points, ticksLeft: ticks };
+      // Spend every spawn point the pellet count has crossed this tick. The
+      // first one shows a Fruit if none is on the board; the rest are spent, so
+      // a point crossed while a Fruit is up never queues a second Fruit.
+      let shown = fruit !== null;
+      while (nextSpawn < spawnPellets.length && pelletsEaten >= spawnPellets[nextSpawn]!) {
+        nextSpawn += 1;
+        if (shown) continue;
+        const spec = fruitForLevel(level);
+        fruit = { kind: spec.kind, tile: spawnTile, points: spec.points, ticksLeft: ticks };
+        shown = true;
+      }
     },
 
     tick() {

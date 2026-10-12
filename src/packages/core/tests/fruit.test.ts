@@ -74,6 +74,23 @@ describe("fruit spawn", () => {
     drive(sim, 4, null); // eats the Pellet at 11: second Fruit
     expect(sim.snapshot().fruit).not.toBeNull();
   });
+
+  it("spends every spawn point crossed in one tick, showing one Fruit", () => {
+    // At three tiles a tick, one tick crosses both spawn points at once.
+    const maze = corridor(rowWith({ 2: ".", 10: ".", 11: ".", 12: ".", 13: "P" }));
+    const sim = createSimulation({
+      maze,
+      seed: 1,
+      difficulty: { pacmanTilesPerTick: 3 },
+      fruit: { spawnPellets: [1, 2], spawnTile: { x: 20, y: CORRIDOR_ROW }, ticks: 1 },
+    });
+
+    drive(sim, 1, null);
+    expect(sim.snapshot().fruit).not.toBeNull();
+
+    drive(sim, 1, null); // it times out; the second point is already spent
+    expect(sim.snapshot().fruit).toBeNull();
+  });
 });
 
 describe("fruit scoring", () => {
@@ -95,6 +112,22 @@ describe("fruit scoring", () => {
     const snap = sim.snapshot();
     expect(snap.score).toBe(10 + fruitForLevel(1).points);
     expect(snap.fruit).toBeNull();
+  });
+
+  it("scores a Fruit reached on the same tick as the last Pellet", () => {
+    // PacMan at 8 walks right: eats the Pellet at 9 (spawning the Fruit over
+    // 10-11), then reaches 10 on the tick he eats the last Pellet there.
+    const maze = corridor(rowWith({ 8: "P", 9: ".", 10: "." }));
+    const sim = createSimulation({
+      maze,
+      seed: 1,
+      fruit: { spawnPellets: [1], spawnTile: { x: 10, y: CORRIDOR_ROW } },
+    });
+
+    drive(sim, 16, "right");
+    const snap = sim.snapshot();
+    expect(snap.level).toBe(2);
+    expect(snap.score).toBe(10 + 10 + fruitForLevel(1).points);
   });
 
   it("scores the points for the Level from the table", () => {

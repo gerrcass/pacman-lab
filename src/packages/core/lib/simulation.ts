@@ -376,10 +376,13 @@ export function createSimulation(config: SimulationConfig): Simulation {
       advanceSchedule();
       if (intent.desired !== null) next = intent.desired;
       move();
+      // Score the Fruit before the Pellet pass: a Fruit sharing the last
+      // Pellet's tile is reached on the same tick, and the Level clear would
+      // otherwise reset it before its points are counted.
+      eatFruit();
       // A Level that clears this tick repositions everyone; the stale move path
       // must not be swept against the fresh Ghosts.
       if (eatTraversed()) return;
-      eatFruit();
       fruit.maybeSpawn(level, pelletsEaten);
       updateGhosts(ghosts, {
         maze,
