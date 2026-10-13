@@ -47,5 +47,12 @@ export default tseslint.config(
       globals: globals.node,
     },
   },
+  {
+    files: ["tools/**/*.mjs"],
+    languageOptions: {
+      // The module runs in Node; the page.evaluate callbacks run in the browser.
+      globals: { ...globals.node, ...globals.browser },
+    },
+  },
   prettier,
 );

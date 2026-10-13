@@ -11,6 +11,14 @@ current evidence-capture recipe, see
 [evidence.md](./evidence.md); the capture entries below are the history of how
 it got there.
 
+## 2026-10-12 — Merging from a worktree leaves the remote branch behind
+
+`gh pr merge --squash --delete-branch` merges, then fails at the local branch
+delete when `main` is checked out in the main worktree ("fatal: 'main' is already
+checked out"), so the remote branch survives. The merge itself is fine. Delete
+the remote branch explicitly (`git push origin --delete <branch>`), or run the
+merge from the main checkout. #34.
+
 ## 2026-10-12 — A fake-clock capture is only deterministic if the cadence is fixed
 
 Driving the game with `page.clock.runFor` and sampling frames (#15), two runs
