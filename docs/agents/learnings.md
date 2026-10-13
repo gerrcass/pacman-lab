@@ -11,6 +11,18 @@ current evidence-capture recipe, see
 [evidence.md](./evidence.md); the capture entries below are the history of how
 it got there.
 
+## 2026-10-12 — A fake-clock capture is only deterministic if the cadence is fixed
+
+Driving the game with `page.clock.runFor` and sampling frames (#15), two runs
+with the same key presses diverged: one reached game over in 47s, the other never
+did in 120s. The difference was the screenshot cadence. Taking a screenshot
+between `runFor` steps nudges the frame loop, so the keys land on different ticks
+and the deterministic run splits. Reproduce a capture with the exact same cadence
+and compare two builds by running the identical script against both. A readiness
+poll has its own trap: the boot screen draws the same wordmark as the title, so
+"wait for the yellow wordmark" exits during boot. Wait out the boot countdown, or
+poll for something only the title has. PR #33.
+
 ## 2026-10-12 — Detect a terminal screen with a pixel probe, not a fixed wait
 
 Verifying the finished slice (#15), I sampled frames to a video and tried to stop
