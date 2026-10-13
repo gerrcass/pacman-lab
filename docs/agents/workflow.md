@@ -18,10 +18,31 @@ is grilled into a spec, the spec is broken into tickets, and each ticket runs
 through four beats and lands as a pull request. Nothing is built on `main`, and
 nothing merges without a review and passing checks.
 
+```mermaid
+flowchart LR
+    idea["Idea"] --> design["/grilling + /domain-modeling"]
+    design --> spec["/to-spec writes the spec issue"]
+    spec --> tickets["/to-tickets splits it into tickets"]
+    tickets --> beats["Four beats per ticket"]
+    beats --> pr["Open PR"]
+    pr --> main["Merged to main"]
+```
+
 ## The four beats
 
 Every task runs through the same four beats. Each is backed by a skill in
 `.agents/skills/`, and each ends when its completion criterion is met.
+
+```mermaid
+flowchart LR
+    isolate["Isolate<br/>/new-feature"] --> build["Build<br/>/code-structure"]
+    build --> prove["Prove<br/>/evidence-driven-testing"]
+    prove --> ship["Ship<br/>/before-and-after"]
+    ship --> review["/greploop"]
+    review -->|"findings"| fix["Fix, re-push"]
+    fix --> review
+    review -->|"5/5, no open threads"| done["PR ready"]
+```
 
 | Beat | Skill | Produces | Done when |
 |---|---|---|---|
@@ -87,6 +108,16 @@ spec is a parent issue and its tickets are GitHub sub-issues; a ticket is
 unblocked when every issue blocking it is closed. The **frontier** is the set of
 open tickets that are `ready-for-agent`, unblocked, and unassigned; the first in
 map order is next.
+
+```mermaid
+flowchart LR
+    blocked["Open, blocked"] --> ready["ready-for-agent, unblocked"]
+    ready --> frontier["Frontier"]
+    frontier --> progress["In progress, /next-ticket"]
+    progress --> pr["Open PR"]
+    pr --> closed["Closed, merged"]
+    closed -->|"unblocks dependents"| ready
+```
 
 ## Running a ticket without driving each beat by hand
 
@@ -193,6 +224,25 @@ tools/pw.sh                runs a Playwright capture script
 ```
 
 ## One ticket, end to end
+
+```mermaid
+sequenceDiagram
+    participant A as Agent
+    participant T as Tracker
+    participant W as Worktree
+    participant C as Checks + evidence
+    participant R as Reviewers
+    A->>T: pick the first frontier ticket
+    A->>W: /new-feature (worktree + branch)
+    A->>W: /code-structure, test-first
+    A->>C: typecheck, lint, test, deps, build + evidence
+    A->>T: open the PR
+    R->>T: CI, /code-review, Greptile
+    T-->>A: findings
+    A->>W: fix, re-push
+    Note over A,R: repeat until 5/5 and no open threads
+    A->>T: present the PR URL
+```
 
 ```bash
 # Isolate
