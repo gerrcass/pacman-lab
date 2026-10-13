@@ -7,17 +7,29 @@
 import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 
-/** The boot and title wordmark, drawn in yellow. */
-const YELLOW = [255, 255, 0];
+const CANVAS_SELECTOR = "canvas#game";
+/** The title's HUD and prompt text, drawn in white. */
+const WHITE = [255, 255, 255];
 /** The GAME OVER banner, drawn in pure red. */
 const RED = [255, 0, 0];
-/** Boot is 60 ticks at 60 Hz; 1500ms clears it with margin. */
-const BOOT_MS = 1500;
+/** Enough white to mean the title is drawn, not a stray glyph. */
+const TITLE_WHITE_MIN = 500;
+/** The GAME OVER banner's red share of the canvas, which the threshold follows. */
+const GAME_OVER_AREA_SHARE = 0.01;
+
+const padded = (index) => String(index).padStart(5, "0");
+const frameName = (index) => `f_${padded(index)}.png`;
+
+function resetDir(dir) {
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+}
 
 /**
  * Launches Chromium, installs the fake clock, and opens the URL. The clock must
  * be installed before the navigation so the app runs on fake time from its first
- * frame. Pass context options (for example `hasTouch`, `isMobile`) in `context`.
+ * frame. Pass context options (for example `hasTouch` and `isMobile` for a touch
+ * capture) in `context`.
  */
 export async function open(chromium, url, options = {}) {
   const browser = await chromium.launch({ args: ["--no-sandbox"] });
@@ -34,8 +46,8 @@ export async function open(chromium, url, options = {}) {
 /** Exact-pixel count of one RGB triple on the game canvas. */
 export function countPixels(page, [r, g, b]) {
   return page.evaluate(
-    ([r, g, b]) => {
-      const canvas = document.querySelector("canvas#game");
+    ([selector, r, g, b]) => {
+      const canvas = document.querySelector(selector);
       const { data } = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
       let count = 0;
       for (let i = 0; i < data.length; i += 4) {
@@ -43,26 +55,30 @@ export function countPixels(page, [r, g, b]) {
       }
       return count;
     },
-    [r, g, b],
+    [CANVAS_SELECTOR, r, g, b],
   );
 }
 
-/**
- * Advances the clock until the app has drawn its boot screen. A capture that
- * starts stepping before the module has executed would advance past nothing, so
- * wait for the wordmark instead of a fixed delay.
- */
-export async function waitForBoot(page, { stepMs = 200, attempts = 60 } = {}) {
-  for (let i = 0; i < attempts; i += 1) {
-    await page.clock.runFor(stepMs);
-    if ((await countPixels(page, YELLOW)) > 2000) return;
-  }
-  throw new Error("waitForBoot: the app never drew its boot screen");
+function canvasArea(page) {
+  return page.evaluate((selector) => {
+    const canvas = document.querySelector(selector);
+    return canvas.width * canvas.height;
+  }, CANVAS_SELECTOR);
 }
 
-/** Advances the clock past the boot countdown onto the title. */
-export async function toTitle(page) {
-  await page.clock.runFor(BOOT_MS);
+/**
+ * Advances the clock until the title screen is drawn. The boot screen draws only
+ * the wordmark, so the title's white HUD text is the first white on screen: wait
+ * for that, not for the shared wordmark, or a capture stops on boot. This also
+ * covers a cold start, where the app may not have executed when the first step
+ * runs.
+ */
+export async function toTitle(page, { stepMs = 200, attempts = 60 } = {}) {
+  for (let i = 0; i < attempts; i += 1) {
+    await page.clock.runFor(stepMs);
+    if ((await countPixels(page, WHITE)) > TITLE_WHITE_MIN) return;
+  }
+  throw new Error("toTitle: the title screen never drew");
 }
 
 /**
@@ -71,11 +87,7 @@ export async function toTitle(page) {
  * threshold scales with it too.
  */
 export async function gameOver(page) {
-  const area = await page.evaluate(() => {
-    const canvas = document.querySelector("canvas#game");
-    return canvas.width * canvas.height;
-  });
-  return (await countPixels(page, RED)) > area * 0.01;
+  return (await countPixels(page, RED)) > (await canvasArea(page)) * GAME_OVER_AREA_SHARE;
 }
 
 /**
@@ -84,14 +96,12 @@ export async function gameOver(page) {
  * `dir` first, so a re-run does not leave stale frames behind.
  */
 export async function sample(page, { dir, stepMs = 100, stop }) {
-  rmSync(dir, { recursive: true, force: true });
-  mkdirSync(dir, { recursive: true });
+  resetDir(dir);
 
   let elapsedMs = 0;
   let frames = 0;
   for (;;) {
-    const name = `${dir}/f_${String(frames).padStart(5, "0")}.png`;
-    writeFileSync(name, await page.screenshot());
+    writeFileSync(`${dir}/${frameName(frames)}`, await page.screenshot());
     frames += 1;
     if (stop && (await stop(page, elapsedMs))) break;
     elapsedMs += stepMs;
@@ -106,14 +116,13 @@ export async function sample(page, { dir, stepMs = 100, stop }) {
  */
 export function encodeVideo(framesDir, outPath, fps = 10) {
   const seq = `${framesDir}/.seq`;
-  rmSync(seq, { recursive: true, force: true });
-  mkdirSync(seq, { recursive: true });
+  resetDir(seq);
 
   const files = readdirSync(framesDir)
     .filter((name) => name.endsWith(".png"))
     .sort();
   files.forEach((name, index) => {
-    copyFileSync(`${framesDir}/${name}`, `${seq}/${String(index).padStart(5, "0")}.png`);
+    copyFileSync(`${framesDir}/${name}`, `${seq}/${padded(index)}.png`);
   });
 
   execFileSync(

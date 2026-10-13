@@ -14,28 +14,30 @@ use the headless path below. `agent-browser` hangs here too.
 ## Capture with Playwright and a fake clock
 
 `tools/capture.mjs` holds the reusable helpers: install the fake clock, wait for
-the app to draw, step the clock, probe canvas pixels, sample frames to a video,
-and stop at a terminal screen. A capture script imports `chromium` from
-`playwright`, hands it to `open`, and drives the real page:
+the title, step the clock, probe canvas pixels, sample frames to a video, and
+stop at a terminal screen. A capture script imports `chromium` from `playwright`,
+hands it to `open`, and drives the real page:
 
 ```js
 import { chromium } from "playwright";
 import {
   open,
-  waitForBoot,
   toTitle,
+  countPixels,
   gameOver,
   sample,
   encodeVideo,
 } from "../../tools/capture.mjs";
 
 const { browser, page } = await open(chromium, "http://localhost:5210/");
-await waitForBoot(page); // the app has drawn its first frame
-await toTitle(page); // past the 60-tick boot countdown
+await toTitle(page); // waits out boot onto the title, cold start included
 await page.screenshot({ path: "after-01-title.png" });
 await page.keyboard.press("Space");
 await page.clock.runFor(600); // mid-READY, before the 90-tick countdown ends
 await page.screenshot({ path: "after-02-ready.png" });
+
+// A raw probe, for a screen with no built-in predicate.
+const white = await countPixels(page, [255, 255, 255]);
 
 await sample(page, { dir: "frames", stepMs: 100, stop: gameOver });
 encodeVideo("frames", "after.mp4", 10);
@@ -45,8 +47,14 @@ await browser.close();
 `page.clock.runFor(ms)` steps requestAnimationFrame exactly, so a capture can
 stop on a state that lasts a fraction of a second. A plain screenshot arrives
 about two seconds late and misses it. The clock must be installed before the
-navigation, which `open` does. Keep the script beside its captures under
-`.artifacts/<task>/` (gitignored) so the run is repeatable.
+navigation, which `open` does. `toTitle` waits for the title's white HUD text,
+so neither a cold start nor the boot screen's shared wordmark makes a capture
+stop early.
+
+Screenshots between `runFor` steps nudge the frame loop, so two runs with the
+same key presses diverge if their capture cadence differs. Compare two builds by
+running the same script, unchanged, against both. Keep the script beside its
+captures under `.artifacts/<task>/` (gitignored) so the run is repeatable.
 
 ## Run a capture script
 
