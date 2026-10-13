@@ -82,7 +82,7 @@ export function drawLevelClear(ctx: CanvasRenderingContext2D, viewport: Viewport
   drawTextCentered(ctx, LEVEL_CLEAR_TEXT, CENTER_X, 148, BANNER);
 }
 
-/** The game over screen: the run score and the persisted high score. */
+/** The game over screen: the run score, the persisted high score, and how to play again. */
 export function drawGameOver(
   ctx: CanvasRenderingContext2D,
   viewport: Viewport,
@@ -99,6 +99,7 @@ export function drawGameOver(
     188,
     GAME_OVER_DETAIL,
   );
+  drawTextCentered(ctx, PROMPT_TEXT, CENTER_X, 214, PROMPT);
 }
 
 /**
