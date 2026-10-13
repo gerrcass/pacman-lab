@@ -13,31 +13,42 @@ use the headless path below. `agent-browser` hangs here too.
 
 ## Capture with Playwright and a fake clock
 
-Drive the app with a Playwright script and step its clock, so a transient screen
-settles on screen instead of racing a screenshot:
+`tools/capture.mjs` holds the reusable helpers: install the fake clock, wait for
+the app to draw, step the clock, probe canvas pixels, sample frames to a video,
+and stop at a terminal screen. A capture script imports `chromium` from
+`playwright`, hands it to `open`, and drives the real page:
 
 ```js
 import { chromium } from "playwright";
+import {
+  open,
+  waitForBoot,
+  toTitle,
+  gameOver,
+  sample,
+  encodeVideo,
+} from "../../tools/capture.mjs";
 
-const browser = await chromium.launch({ args: ["--no-sandbox"] });
-const context = await browser.newContext({ viewport: { width: 720, height: 900 } });
-const page = await context.newPage();
-await page.clock.install(); // take over Date, requestAnimationFrame, performance
-await page.goto("http://localhost:5210/");
-await page.clock.runFor(1400); // boot -> title
+const { browser, page } = await open(chromium, "http://localhost:5210/");
+await waitForBoot(page); // the app has drawn its first frame
+await toTitle(page); // past the 60-tick boot countdown
 await page.screenshot({ path: "after-01-title.png" });
 await page.keyboard.press("Space");
 await page.clock.runFor(600); // mid-READY, before the 90-tick countdown ends
 await page.screenshot({ path: "after-02-ready.png" });
+
+await sample(page, { dir: "frames", stepMs: 100, stop: gameOver });
+encodeVideo("frames", "after.mp4", 10);
 await browser.close();
 ```
 
 `page.clock.runFor(ms)` steps requestAnimationFrame exactly, so a capture can
 stop on a state that lasts a fraction of a second. A plain screenshot arrives
-about two seconds late and misses it.
+about two seconds late and misses it. The clock must be installed before the
+navigation, which `open` does. Keep the script beside its captures under
+`.artifacts/<task>/` (gitignored) so the run is repeatable.
 
-Run the script through `tools/pw.sh`, which resolves Playwright from the npm npx
-cache without adding it to the project's dependencies:
+## Run a capture script
 
 ```bash
 tools/pw.sh .artifacts/<task>/capture.mjs
@@ -45,9 +56,7 @@ tools/pw.sh .artifacts/<task>/capture.mjs
 
 `npx --package=playwright node capture.mjs` does not work on npm 11: it does not
 put the package on Node's ESM resolution path. `tools/pw.sh` links the cache's
-`node_modules` beside the script so `import "playwright"` resolves. Keep the
-script beside its captures under `.artifacts/<task>/` (gitignored) so the run is
-repeatable.
+`node_modules` beside the script so `import "playwright"` resolves.
 
 ## States that are impractical to reach live
 
@@ -62,13 +71,12 @@ per the README's deep-module rules.
 A frame sampler has to know when the run ends. A fixed duration is brittle, and
 "the frame stopped changing" misfires: the board is frozen for 1.5s on every
 READY, so identical consecutive frames also mean a countdown, not the end. Probe
-the canvas for the screen's own signature instead. The GAME OVER banner is the
-only large run of pure red on the board, so read the canvas with `getImageData`
-and count `(255, 0, 0)` pixels. The count scales with the viewport scale squared:
-about 13,000 at the 720x900 capture (scale 3.125) against a live-play baseline of
-roughly 90 for Blinky, and about 1,300 at scale 1. Pick the threshold from the
-capture size, or capture at scale 2 or higher, rather than a fixed number. The
-same trick finds any screen with a distinctive colour.
+the canvas for the screen's own signature instead. `gameOver` counts the pure-red
+pixels of the GAME OVER banner, the only large run of red on the board, against a
+share of the canvas area, so the threshold scales with the capture size: about
+13,000 red pixels at the 720x900 capture against roughly 90 in live play, about
+1,300 at scale 1. `sample` takes any such predicate as its `stop`. The same trick
+finds any screen with a distinctive colour.
 
 ## Before shots
 
